@@ -2,7 +2,7 @@
 
 # Stage2 MVP Schema 契约
 
-状态：阶段0B草案。本文档说明本轮新增的 Stage2 MVP JSON Schema 草案。Schema 只描述数据格式，不实现校验器、求解器、测试 fixture 或实验。
+状态：阶段0C草案。本文档说明 Stage2 MVP JSON Schema 草案，以及合成手算 fixture 如何使用这些 Schema。Schema 只描述数据格式，不实现校验器、求解器或实验。
 
 ## 1. 目的
 
@@ -12,7 +12,7 @@
 - `schemas/distance_lookup.schema.json`
 - `schemas/stage2_result.schema.json`
 
-这些 Schema 用于辅助审查、后续校验和可复现实验准备，但不表示 Stage2 分配器已经可以运行。
+这些 Schema 用于辅助审查、后续校验、手算 fixture 和可复现实验准备，但不表示 Stage2 分配器已经可以运行。
 
 ## 2. 三个 Schema 的职责
 
@@ -133,7 +133,7 @@ proxy
 synthetic
 ```
 
-D0-4 仍保持 `DRAFT`。这些词汇足以支撑阶段0B的 Schema 草案，但还不是最终的字段级数据来源设计。
+D0-4 仍保持 `DRAFT`。这些词汇足以支撑阶段0B的 Schema 草案和阶段0C手算 fixture，但还不是最终的字段级数据来源设计。
 
 ## 7. Lookup 的 cap 语义
 
@@ -176,17 +176,28 @@ D0-3 要求未来实现记录乘子搜索配置和过程。因此 result Schema 
 
 如果在 `B_min_feasible <= Budget_total` 的情况下仍无法恢复预算可行解，结果应使用明确异常状态，并保留搜索过程以便排查。
 
-## 11. 阶段0B未实现内容
+## 11. 手算 Fixture 使用方式
 
-阶段0B不实现：
+阶段0C新增 `tests/fixtures/handcheck_3x3/`，这是一组合成的 3 分块、3 档位手算 fixture。它使用 Stage2 输入 Schema、距离 lookup Schema 和结果 Schema 记录：
+
+- 预算可行的 success 输入；
+- 预算不可行的 infeasible 输入；
+- 使用 `cap` 语义的合成 lookup profile；
+- success 和 infeasible 的预期结果；
+- 中英文手算说明。
+
+该 fixture 用于检查 Schema 形状、lookup cap 行为、`B_min_feasible`、`INFEASIBLE_BUDGET` 和简单效用计算。它不是真实 Longdress 数据，不是正式实验结果，也不是由求解器生成的输出。
+
+## 12. 截至阶段0C未实现内容
+
+阶段0C不实现：
 
 - JSON 校验器封装；
 - Stage2 求解器；
 - lookup 匹配代码；
-- fixture 生成；
 - 正式实验；
 - Web 播放器集成。
 
-## 12. 后续使用方式
+## 13. 后续使用方式
 
-后续阶段可以使用这些 Schema 校验手写输入、lookup profile 和求解器输出。开始设计 fixture 后，可以根据真实样例继续细化 Schema；但任何涉及 D0-1、D0-2 或 D0-3 的语义变化，都必须同步记录到决策日志。
+后续阶段可以使用这些 Schema 校验手写输入、lookup profile、fixture 文件和求解器输出。进入实现后，可以根据真实样例继续细化 Schema；但任何涉及 D0-1、D0-2 或 D0-3 的语义变化，都必须同步记录到决策日志。

@@ -1,0 +1,194 @@
+{
+  "schema_version": "0.1.0",
+  "scenario_id": "handcheck_3x3_success",
+  "description": "Synthetic 3-tile by 3-level handcheck scenario with feasible budget.",
+  "budget_total_bytes": 210,
+  "eta": 0.1,
+  "lookup_profile_id": "handcheck_lookup_cap_v1",
+  "tiles": [
+    {
+      "tile_id": "T1_near_important",
+      "p_sal": 10,
+      "visibility": 1,
+      "screen_area": 1,
+      "distance_norm": 1.0,
+      "view_context": "full_body",
+      "levels": [
+        {
+          "level_id": 1,
+          "quality_label": "L1",
+          "pdl_ratio": 0.2,
+          "q_base": 1,
+          "r_bytes": 50,
+          "d_ms": 1,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 2,
+          "quality_label": "L2",
+          "pdl_ratio": 0.6,
+          "q_base": 2,
+          "r_bytes": 90,
+          "d_ms": 2,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 3,
+          "quality_label": "L3",
+          "pdl_ratio": 1.0,
+          "q_base": 3,
+          "r_bytes": 130,
+          "d_ms": 3,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        }
+      ],
+      "provenance": {
+        "p_sal": "synthetic",
+        "visibility": "synthetic",
+        "screen_area": "synthetic",
+        "distance_norm": "synthetic",
+        "view_context": "synthetic"
+      }
+    },
+    {
+      "tile_id": "T2_mid_visible",
+      "p_sal": 6,
+      "visibility": 1,
+      "screen_area": 1,
+      "distance_norm": 3.0,
+      "view_context": "full_body",
+      "levels": [
+        {
+          "level_id": 1,
+          "quality_label": "L1",
+          "pdl_ratio": 0.2,
+          "q_base": 1,
+          "r_bytes": 40,
+          "d_ms": 1,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 2,
+          "quality_label": "L2",
+          "pdl_ratio": 0.6,
+          "q_base": 2,
+          "r_bytes": 80,
+          "d_ms": 2,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 3,
+          "quality_label": "L3",
+          "pdl_ratio": 1.0,
+          "q_base": 3,
+          "r_bytes": 120,
+          "d_ms": 3,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        }
+      ],
+      "provenance": {
+        "p_sal": "synthetic",
+        "visibility": "synthetic",
+        "screen_area": "synthetic",
+        "distance_norm": "synthetic",
+        "view_context": "synthetic"
+      }
+    },
+    {
+      "tile_id": "T3_far_capped",
+      "p_sal": 4,
+      "visibility": 1,
+      "screen_area": 1,
+      "distance_norm": 6.0,
+      "view_context": "full_body",
+      "levels": [
+        {
+          "level_id": 1,
+          "quality_label": "L1",
+          "pdl_ratio": 0.2,
+          "q_base": 1,
+          "r_bytes": 30,
+          "d_ms": 1,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 2,
+          "quality_label": "L2",
+          "pdl_ratio": 0.6,
+          "q_base": 2,
+          "r_bytes": 70,
+          "d_ms": 2,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        },
+        {
+          "level_id": 3,
+          "quality_label": "L3",
+          "pdl_ratio": 1.0,
+          "q_base": 3,
+          "r_bytes": 110,
+          "d_ms": 3,
+          "provenance": {
+            "pdl_ratio": "synthetic",
+            "q_base": "synthetic",
+            "r_bytes": "synthetic",
+            "d_ms": "synthetic"
+          }
+        }
+      ],
+      "provenance": {
+        "p_sal": "synthetic",
+        "visibility": "synthetic",
+        "screen_area": "synthetic",
+        "distance_norm": "synthetic",
+        "view_context": "synthetic"
+      }
+    }
+  ],
+  "provenance_summary": {
+    "default_type": "synthetic",
+    "source_ids": [
+      "handcheck_3x3_manual"
+    ],
+    "notes": "Synthetic handcheck fixture for Stage2 schema and future solver checks. Not real Longdress experiment data."
+  }
+}

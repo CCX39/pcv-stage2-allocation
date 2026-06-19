@@ -2,14 +2,14 @@ Languages: English | [中文](manual_review_checklist.zh-CN.md)
 
 # Manual Review Checklist
 
-Use this checklist to review the Phase 0A through Phase 0B outputs and verify that the Stage2 contract has not gone beyond the approved scope.
+Use this checklist to review the Phase 0A through Phase 0C outputs and verify that the Stage2 contract has not gone beyond the approved scope.
 
 ## 1. Project Boundary
 
 - [ ] Can I explain the responsibility difference between Stage1 and Stage2 in my own words?
 - [ ] Can I explain why this repository is not a complete player?
 - [ ] Can I explain why the distance calibration project is not the Stage2 allocator?
-- [ ] Can I list the functions explicitly not implemented through Phase 0B?
+- [ ] Can I list the functions explicitly not implemented through Phase 0C?
 
 ## 2. Mathematical Model
 
@@ -55,7 +55,7 @@ Use this checklist to review the Phase 0A through Phase 0B outputs and verify th
 - [ ] Can I identify which future fields may initially use proxy values?
 - [ ] Can I explain why proxy values must not be described as real decoding measurements?
 - [ ] Can I explain which provenance type lookup belongs to?
-- [ ] Can I explain why D0-4 remains `DRAFT` after Phase 0B?
+- [ ] Can I explain why D0-4 remains `DRAFT` after Phase 0C?
 
 ## 7. Schema Review
 
@@ -66,7 +66,15 @@ Use this checklist to review the Phase 0A through Phase 0B outputs and verify th
 - [ ] Can I explain why normalized render distance is not physical meters?
 - [ ] Can I explain why `reference_docs/` must not be committed even though it informed the Schema draft?
 
-## 8. Codex Output Review
+## 8. Handcheck Fixture Review
+
+- [ ] Can I explain what the `handcheck_3x3` fixture is intended to verify?
+- [ ] Can I explain why the fixture uses `G(d_i) = 1.0` without freezing a future distance function?
+- [ ] Can I reproduce the success result `T1L3 + T2L1 + T3L1` by hand?
+- [ ] Can I explain why the infeasible input returns `INFEASIBLE_BUDGET`?
+- [ ] Can I explain why this fixture is synthetic and not a real Longdress experiment?
+
+## 9. Codex Output Review
 
 - [ ] Does any document introduce an unconfirmed new algorithm assumption?
 - [ ] Is D0-1 correctly recorded as resolved?
@@ -75,15 +83,15 @@ Use this checklist to review the Phase 0A through Phase 0B outputs and verify th
 - [ ] Are English and Chinese documents technically consistent?
 - [ ] Is the Chinese version natural rather than mechanically translated?
 - [ ] Does the Chinese version avoid unnecessary English for ordinary concepts?
-- [ ] Were any algorithm source files, unplanned Schema files, or test fixtures created by mistake?
+- [ ] Were any algorithm source files, unplanned Schema files, or unplanned fixtures created by mistake?
 - [ ] Was `reference_docs/` modified?
-- [ ] Did any work exceed Phase 0B scope?
+- [ ] Did any work exceed Phase 0C scope?
 
-## 9. File And Scope Check
+## 10. File And Scope Check
 
 - [ ] `.gitignore` includes `/reference_docs/`.
 - [ ] `src/` contains no algorithm source file.
 - [ ] `schemas/` contains only Schema drafts and `.gitkeep`, not validator code or fixture data.
-- [ ] `tests/fixtures/` contains no fixture data.
+- [ ] `tests/fixtures/` contains the planned `handcheck_3x3` fixture and no generated experiment output.
 - [ ] The documents state that no Stage2 solver has been implemented.
 - [ ] The documents state that near-field lookup level 5 does not force the final selected level to 5.

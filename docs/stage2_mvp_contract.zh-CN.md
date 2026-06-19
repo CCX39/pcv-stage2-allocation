@@ -2,7 +2,7 @@
 
 # Stage2 MVP 契约
 
-状态：阶段0B草案。本文档定义计划中的 Stage2 MVP 契约、已冻结的 MVP 默认决策和 JSON Schema 草案，不实现任何计算。
+状态：阶段0C草案。本文档定义计划中的 Stage2 MVP 契约、已冻结的 MVP 默认决策、JSON Schema 草案和手算 fixture 边界，不实现任何计算。
 
 ## 1. 项目目的
 
@@ -14,7 +14,7 @@
 - 可解释；
 - 可逐步移植到 Web 端。
 
-阶段0A、阶段0A.1和阶段0B只记录实现前必须明确的契约、已冻结默认决策和 Schema 草案。
+阶段0A、阶段0A.1、阶段0B和阶段0C只记录实现前必须明确的契约、已冻结默认决策、Schema 草案和手算 fixture。
 
 ## 2. MVP 范围
 
@@ -30,7 +30,7 @@
 - 使用剩余预算做局部增量升级；
 - 输出结构化结果和过程追踪信息。
 
-这些都是计划中的 MVP 能力，阶段0B均未实现。
+这些都是计划中的求解器能力，截至阶段0C均未实现。
 
 ## 3. 明确不做的内容
 
@@ -196,7 +196,7 @@ allowed_levels = {1, 2, ..., j_max_dist}
 -> 输出结果
 ```
 
-阶段0B没有实现这些模块。
+截至阶段0C仍没有实现这些模块。
 
 ## 9. 必须满足的不变量
 
@@ -405,7 +405,7 @@ schemas/stage2_result.schema.json
 
 这些 Schema 草案分别定义 Stage2 输入场景、距离 lookup profile 和未来求解器输出的数据结构。它们保持 D0-1 已确认的 cap 语义、D0-2 已冻结的 `INFEASIBLE_BUDGET` 行为，以及 D0-3 已冻结的乘子搜索记录要求。D0-4 数据来源词汇仍保持 `DRAFT`。
 
-这些 Schema 不实现校验器、lookup 匹配、Stage2 求解器、fixture 或实验。
+这些 Schema 不实现校验器、lookup 匹配、Stage2 求解器或实验。
 
 字段细节见：
 
@@ -414,9 +414,9 @@ docs/schema_contract.md
 docs/schema_contract.zh-CN.md
 ```
 
-## 14. 阶段0A至0B完成判据
+## 14. 阶段0A至0C完成判据
 
-阶段0A至阶段0B完成仅表示：
+阶段0A至阶段0C完成仅表示：
 
 - 项目骨架创建完成；
 - 中英文 README 创建完成；
@@ -427,7 +427,8 @@ docs/schema_contract.zh-CN.md
 - D0-2 和 D0-3 已冻结为 MVP 默认策略；
 - Stage2 输入、距离 lookup 和结果 JSON Schema 草案创建完成；
 - 中英文 Schema 契约文档创建完成；
-- 没有实现求解器、校验器、fixture 或实验。
+- 计划内的 3 分块、3 档位手算 fixture 创建完成；
+- 没有实现求解器、校验器或实验。
 
 ## 15. 当前尚未实现的模块
 

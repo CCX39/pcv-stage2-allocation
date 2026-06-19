@@ -1,0 +1,107 @@
+{
+  "schema_version": "0.1.0",
+  "scenario_id": "handcheck_3x3_success",
+  "status": "SUCCESS",
+  "budget_total_bytes": 210,
+  "b_min_feasible": 120,
+  "budget_gap": 0,
+  "total_bytes": 200,
+  "total_net_utility": 39.5,
+  "total_spatial_utility": 40,
+  "total_decode_ms": 5,
+  "budget_utilization": 0.9523809524,
+  "selected_tiles": [
+    {
+      "tile_id": "T1_near_important",
+      "selected_level_id": 3,
+      "r_bytes": 130,
+      "d_ms": 3,
+      "net_utility": 29.7,
+      "spatial_utility": 30,
+      "allowed_levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "tile_id": "T2_mid_visible",
+      "selected_level_id": 1,
+      "r_bytes": 40,
+      "d_ms": 1,
+      "net_utility": 5.9,
+      "spatial_utility": 6,
+      "allowed_levels": [
+        1,
+        2
+      ]
+    },
+    {
+      "tile_id": "T3_far_capped",
+      "selected_level_id": 1,
+      "r_bytes": 30,
+      "d_ms": 1,
+      "net_utility": 3.9,
+      "spatial_utility": 4,
+      "allowed_levels": [
+        1
+      ]
+    }
+  ],
+  "lookup_resolution": [
+    {
+      "tile_id": "T1_near_important",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d1_cap3",
+      "lookup_level": 3,
+      "allowed_levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "tile_id": "T2_mid_visible",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d3_cap2",
+      "lookup_level": 2,
+      "allowed_levels": [
+        1,
+        2
+      ]
+    },
+    {
+      "tile_id": "T3_far_capped",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d6_cap1",
+      "lookup_level": 1,
+      "allowed_levels": [
+        1
+      ]
+    }
+  ],
+  "lambda_search": {
+    "enabled": false,
+    "lambda_initial_high": null,
+    "lambda_max_bracket_steps": null,
+    "score_epsilon": null,
+    "lambda_epsilon": null,
+    "max_iterations": null,
+    "iterations": [],
+    "best_feasible_iteration": null
+  },
+  "runtime_ms": null,
+  "config_snapshot": {
+    "reference_type": "manual_handcheck",
+    "eta": 0.1,
+    "g_distance": 1.0,
+    "notes": "Expected result is a manual reference, not a solver trace."
+  },
+  "warnings": [
+    {
+      "code": "MANUAL_HANDCHECK_REFERENCE",
+      "message": "lambda_search is disabled because this file records a manual expected result."
+    }
+  ],
+  "errors": []
+}

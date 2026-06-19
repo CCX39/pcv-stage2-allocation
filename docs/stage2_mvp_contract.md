@@ -2,7 +2,7 @@ Languages: English | [中文](stage2_mvp_contract.zh-CN.md)
 
 # Stage2 MVP Contract
 
-Status: Phase 0B draft. This document defines the planned Stage2 MVP contract, resolved MVP decision defaults, and JSON Schema drafts. It does not implement any computation.
+Status: Phase 0C draft. This document defines the planned Stage2 MVP contract, resolved MVP decision defaults, JSON Schema drafts, and handcheck fixture boundary. It does not implement any computation.
 
 ## 1. Purpose
 
@@ -14,7 +14,7 @@ The purpose of this project is not to build a complete streaming system immediat
 - explainable;
 - gradually portable to the Web side.
 
-Phase 0A, Phase 0A.1, and Phase 0B only record the contract, resolved decision defaults, and schema drafts needed before implementation.
+Phase 0A, Phase 0A.1, Phase 0B, and Phase 0C only record the contract, resolved decision defaults, schema drafts, and handcheck fixture needed before implementation.
 
 ## 2. MVP Scope
 
@@ -30,7 +30,7 @@ The first MVP is planned to support:
 - using residual budget for local incremental upgrades;
 - outputting structured results and trace information.
 
-These are planned MVP capabilities. None of them is implemented in Phase 0B.
+These are planned solver capabilities. None of them is implemented through Phase 0C.
 
 ## 3. Explicit Non-Goals
 
@@ -196,7 +196,7 @@ input validation
 -> output result
 ```
 
-None of these modules is implemented in Phase 0B.
+None of these modules is implemented through Phase 0C.
 
 ## 9. Required Invariants
 
@@ -405,7 +405,7 @@ schemas/stage2_result.schema.json
 
 The schema drafts define data shapes for Stage2 input scenarios, distance lookup profiles, and future solver outputs. They preserve the confirmed D0-1 cap semantics, the resolved D0-2 `INFEASIBLE_BUDGET` behavior, and the resolved D0-3 multiplier-search recording requirements. D0-4 provenance vocabulary remains `DRAFT`.
 
-These schemas do not implement validation code, lookup matching, the Stage2 solver, fixtures, or experiments.
+These schemas do not implement validation code, lookup matching, the Stage2 solver, or experiments.
 
 For field-level details, see:
 
@@ -414,9 +414,9 @@ docs/schema_contract.md
 docs/schema_contract.zh-CN.md
 ```
 
-## 14. Phase 0A Through 0B Completion Criteria
+## 14. Phase 0A Through 0C Completion Criteria
 
-Phase 0A through Phase 0B completion means only:
+Phase 0A through Phase 0C completion means only:
 
 - project skeleton is created;
 - English and Chinese README files are created;
@@ -427,7 +427,8 @@ Phase 0A through Phase 0B completion means only:
 - D0-2 and D0-3 are resolved as MVP default strategies;
 - Stage2 input, distance lookup, and result JSON Schema drafts are created;
 - English and Chinese schema contract documents are created;
-- no solver, validator, fixture, or experiment is implemented.
+- the planned 3-tile by 3-level handcheck fixture is created;
+- no solver, validator, or experiment is implemented.
 
 ## 15. Not Implemented Modules
 

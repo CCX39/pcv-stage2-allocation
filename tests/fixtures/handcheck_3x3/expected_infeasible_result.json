@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1.0",
+  "scenario_id": "handcheck_3x3_infeasible",
+  "status": "INFEASIBLE_BUDGET",
+  "budget_total_bytes": 100,
+  "b_min_feasible": 120,
+  "budget_gap": 20,
+  "total_bytes": null,
+  "total_net_utility": null,
+  "total_spatial_utility": null,
+  "total_decode_ms": null,
+  "budget_utilization": null,
+  "selected_tiles": [],
+  "lookup_resolution": [
+    {
+      "tile_id": "T1_near_important",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d1_cap3",
+      "lookup_level": 3,
+      "allowed_levels": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "tile_id": "T2_mid_visible",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d3_cap2",
+      "lookup_level": 2,
+      "allowed_levels": [
+        1,
+        2
+      ]
+    },
+    {
+      "tile_id": "T3_far_capped",
+      "lookup_profile_id": "handcheck_lookup_cap_v1",
+      "matched_rule_id": "rule_full_body_d6_cap1",
+      "lookup_level": 1,
+      "allowed_levels": [
+        1
+      ]
+    }
+  ],
+  "lambda_search": {
+    "enabled": false,
+    "lambda_initial_high": null,
+    "lambda_max_bracket_steps": null,
+    "score_epsilon": null,
+    "lambda_epsilon": null,
+    "max_iterations": null,
+    "iterations": [],
+    "best_feasible_iteration": null
+  },
+  "runtime_ms": null,
+  "config_snapshot": {
+    "reference_type": "manual_handcheck",
+    "eta": 0.1,
+    "g_distance": 1.0,
+    "notes": "Expected infeasible result is a manual reference, not a solver trace."
+  },
+  "warnings": [
+    {
+      "code": "MANUAL_HANDCHECK_REFERENCE",
+      "message": "lambda_search is disabled because budget infeasibility is checked before multiplier search."
+    }
+  ],
+  "errors": [
+    {
+      "code": "INFEASIBLE_BUDGET",
+      "message": "budget_total_bytes is below b_min_feasible for the allowed lookup-capped levels.",
+      "details": {
+        "budget_total_bytes": 100,
+        "b_min_feasible": 120,
+        "budget_gap": 20
+      }
+    }
+  ]
+}

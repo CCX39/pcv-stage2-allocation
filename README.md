@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 0B: Stage2 MVP JSON Schema drafts**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B adds draft schemas for Stage2 input, distance lookup, and future result output. These phases create documentation and traceable engineering boundaries only. They do not implement the Stage2 solver.
+This repository is currently at **Phase 0C: handcheck Stage2 fixture set**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C adds a small 3-tile by 3-level handcheck fixture. These phases create documentation and traceable engineering boundaries only. They do not implement the Stage2 solver.
 
 ## Work1 Structure
 
@@ -43,7 +43,13 @@ Phase 0B adds JSON Schema Draft 2020-12 files:
 - `schemas/distance_lookup.schema.json`
 - `schemas/stage2_result.schema.json`
 
-These schemas define data formats only. They do not implement validation code, a solver, fixtures, or experiments.
+These schemas define data formats only. They do not implement validation code, a solver, or experiments.
+
+## Phase 0C Handcheck Fixture
+
+Phase 0C adds a synthetic `tests/fixtures/handcheck_3x3/` fixture set. It contains success and infeasible input examples, a synthetic lookup profile, expected result files, and bilingual hand-calculation notes.
+
+The fixture is for manual checking and later solver validation. It is not real Longdress experiment data and is not a formal experiment result.
 
 ## Current Structure
 
@@ -71,6 +77,14 @@ pcv-stage2-allocation/
 │     └─ .gitkeep
 ├─ tests/
 │  └─ fixtures/
+│     ├─ handcheck_3x3/
+│     │  ├─ input_success.json
+│     │  ├─ input_infeasible.json
+│     │  ├─ distance_lookup.json
+│     │  ├─ expected_success_result.json
+│     │  ├─ expected_infeasible_result.json
+│     │  ├─ hand_calculation.md
+│     │  └─ hand_calculation.zh-CN.md
 │     └─ .gitkeep
 ├─ src/
 │  └─ .gitkeep
@@ -88,6 +102,7 @@ pcv-stage2-allocation/
 - [Schema Contract](docs/schema_contract.md): explains the Stage2 input, distance lookup, and result Schema drafts.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
 - [Manual Review Checklist](docs/manual_review_checklist.md): questions for researcher-side review of the generated Stage2 contract.
+- [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md): manual calculation for the synthetic 3x3 fixture.
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
 - [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)
@@ -99,7 +114,7 @@ This repository currently has no:
 
 - Stage2 solver;
 - implemented JSON validator;
-- test fixture;
+- fixture generator;
 - formal experiment result;
 - Web player integration;
 - online Stage1 interface.
@@ -108,4 +123,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 0B is reviewed, later phases may add validator tooling, prepare controlled fixtures, implement the solver, add end-to-end checks, and run formal experiments. Those steps are intentionally outside the current scope.
+After Phase 0C is reviewed, later phases may add validator tooling, implement the solver, add end-to-end checks, and run formal experiments. Those steps are intentionally outside the current scope.

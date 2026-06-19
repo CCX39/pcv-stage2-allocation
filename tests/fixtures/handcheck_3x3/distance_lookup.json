@@ -1,0 +1,68 @@
+{
+  "schema_version": "0.1.0",
+  "lookup_profile_id": "handcheck_lookup_cap_v1",
+  "semantics": "cap",
+  "distance_unit": "normalized_render_distance",
+  "quality_levels": [
+    {
+      "level_id": 1,
+      "pdl_ratio": 0.2,
+      "quality_label": "L1"
+    },
+    {
+      "level_id": 2,
+      "pdl_ratio": 0.6,
+      "quality_label": "L2"
+    },
+    {
+      "level_id": 3,
+      "pdl_ratio": 1.0,
+      "quality_label": "L3"
+    }
+  ],
+  "source": {
+    "dataset": "synthetic_handcheck_3x3",
+    "renderer": "none_manual",
+    "metric": "manual_cap_rule",
+    "threshold_profile": "handcheck_cap_profile",
+    "source_runs": [
+      "handcheck_3x3_manual"
+    ],
+    "notes": "Synthetic handcheck lookup for cap semantics. This is not a real Longdress calibration result."
+  },
+  "rules": [
+    {
+      "rule_id": "rule_full_body_d1_cap3",
+      "view_context": "full_body",
+      "target_id": null,
+      "distance_match": {
+        "exact_distance": 1.0
+      },
+      "lookup_level": 3,
+      "threshold_profile": "handcheck_cap_profile",
+      "notes": "T1 keeps levels 1, 2, and 3 available."
+    },
+    {
+      "rule_id": "rule_full_body_d3_cap2",
+      "view_context": "full_body",
+      "target_id": null,
+      "distance_match": {
+        "exact_distance": 3.0
+      },
+      "lookup_level": 2,
+      "threshold_profile": "handcheck_cap_profile",
+      "notes": "T2 clips level 3."
+    },
+    {
+      "rule_id": "rule_full_body_d6_cap1",
+      "view_context": "full_body",
+      "target_id": null,
+      "distance_match": {
+        "exact_distance": 6.0
+      },
+      "lookup_level": 1,
+      "threshold_profile": "handcheck_cap_profile",
+      "notes": "T3 clips levels 2 and 3."
+    }
+  ]
+}
