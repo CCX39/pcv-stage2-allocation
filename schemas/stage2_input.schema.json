@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CCX39/pcv-stage2-allocation/schemas/stage2_input.schema.json",
+  "title": "Stage2 MVP Input",
+  "description": "Draft schema for one Stage2 spatial quality allocation decision scenario. This schema constrains data shape only and does not implement solver behavior.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "description",
+    "budget_total_bytes",
+    "eta",
+    "lookup_profile_id",
+    "tiles",
+    "provenance_summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "budget_total_bytes": {
+      "type": "number",
+      "minimum": 0
+    },
+    "eta": {
+      "type": "number",
+      "minimum": 0
+    },
+    "lookup_profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/tile"
+      }
+    },
+    "provenance_summary": {
+      "$ref": "#/$defs/provenanceSummary"
+    }
+  },
+  "$defs": {
+    "provenanceValue": {
+      "type": "string",
+      "enum": [
+        "measured",
+        "calibrated",
+        "derived",
+        "proxy",
+        "synthetic"
+      ]
+    },
+    "provenanceMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/provenanceValue"
+      }
+    },
+    "provenanceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_type"
+      ],
+      "properties": {
+        "default_type": {
+          "$ref": "#/$defs/provenanceValue"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "source_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tile_id",
+        "p_sal",
+        "visibility",
+        "screen_area",
+        "distance_norm",
+        "view_context",
+        "levels",
+        "provenance"
+      ],
+      "properties": {
+        "tile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "p_sal": {
+          "type": "number",
+          "minimum": 0
+        },
+        "visibility": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "screen_area": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "distance_norm": {
+          "type": "number",
+          "minimum": 0
+        },
+        "view_context": {
+          "type": "string",
+          "minLength": 1,
+          "examples": [
+            "full_body",
+            "near_field"
+          ]
+        },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/qualityLevel"
+          }
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenanceMap"
+        }
+      }
+    },
+    "qualityLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level_id",
+        "quality_label",
+        "pdl_ratio",
+        "q_base",
+        "r_bytes",
+        "d_ms",
+        "provenance"
+      ],
+      "properties": {
+        "level_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "quality_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pdl_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "q_base": {
+          "type": "number",
+          "minimum": 0
+        },
+        "r_bytes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "d_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenanceMap"
+        }
+      }
+    }
+  }
+}

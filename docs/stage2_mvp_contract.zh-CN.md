@@ -2,7 +2,7 @@
 
 # Stage2 MVP 契约
 
-状态：阶段0A.1草案。本文档定义计划中的 Stage2 MVP 契约和已冻结的 MVP 默认决策，不实现任何计算。
+状态：阶段0B草案。本文档定义计划中的 Stage2 MVP 契约、已冻结的 MVP 默认决策和 JSON Schema 草案，不实现任何计算。
 
 ## 1. 项目目的
 
@@ -14,7 +14,7 @@
 - 可解释；
 - 可逐步移植到 Web 端。
 
-阶段0A和阶段0A.1只记录实现前必须明确的契约与已冻结默认决策。
+阶段0A、阶段0A.1和阶段0B只记录实现前必须明确的契约、已冻结默认决策和 Schema 草案。
 
 ## 2. MVP 范围
 
@@ -30,7 +30,7 @@
 - 使用剩余预算做局部增量升级；
 - 输出结构化结果和过程追踪信息。
 
-这些都是计划中的 MVP 能力，阶段0A均未实现。
+这些都是计划中的 MVP 能力，阶段0B均未实现。
 
 ## 3. 明确不做的内容
 
@@ -49,7 +49,7 @@
 
 ## 4. 输入概念定义
 
-未来输入需要表达以下概念。阶段0A只定义概念，不创建 JSON Schema。
+未来输入需要表达以下概念。阶段0B新增输入 Schema 草案，但不实现校验器或求解器。
 
 ### 场景级字段
 
@@ -102,7 +102,7 @@
 - 数据来源摘要；
 - 警告和异常信息。
 
-阶段0A只定义这些输出概念，不实现输出代码。
+阶段0B新增结果 Schema 草案来描述这些输出概念，但不实现输出代码。
 
 ## 6. 数学模型与符号
 
@@ -196,7 +196,7 @@ allowed_levels = {1, 2, ..., j_max_dist}
 -> 输出结果
 ```
 
-阶段0A没有实现这些模块。
+阶段0B没有实现这些模块。
 
 ## 9. 必须满足的不变量
 
@@ -393,9 +393,30 @@ INTERNAL_CONSTRAINT_VIOLATION
 
 代理值必须说明公式或构造依据。合成值不能与真实实验结论混用。lookup 记录应保留来源 run ID、阈值、数据集和渲染管线。
 
-## 13. 阶段0A与0A.1完成判据
+## 13. 阶段0B Schema 草案
 
-阶段0A和阶段0A.1完成仅表示：
+阶段0B新增 JSON Schema Draft 2020-12 文件：
+
+```text
+schemas/stage2_input.schema.json
+schemas/distance_lookup.schema.json
+schemas/stage2_result.schema.json
+```
+
+这些 Schema 草案分别定义 Stage2 输入场景、距离 lookup profile 和未来求解器输出的数据结构。它们保持 D0-1 已确认的 cap 语义、D0-2 已冻结的 `INFEASIBLE_BUDGET` 行为，以及 D0-3 已冻结的乘子搜索记录要求。D0-4 数据来源词汇仍保持 `DRAFT`。
+
+这些 Schema 不实现校验器、lookup 匹配、Stage2 求解器、fixture 或实验。
+
+字段细节见：
+
+```text
+docs/schema_contract.md
+docs/schema_contract.zh-CN.md
+```
+
+## 14. 阶段0A至0B完成判据
+
+阶段0A至阶段0B完成仅表示：
 
 - 项目骨架创建完成；
 - 中英文 README 创建完成；
@@ -404,14 +425,15 @@ INTERNAL_CONSTRAINT_VIOLATION
 - 中英文人工验收清单创建完成；
 - D0-1 已按用户确认语义记录；
 - D0-2 和 D0-3 已冻结为 MVP 默认策略；
-- 没有实现求解器、Schema 或 fixture。
+- Stage2 输入、距离 lookup 和结果 JSON Schema 草案创建完成；
+- 中英文 Schema 契约文档创建完成；
+- 没有实现求解器、校验器、fixture 或实验。
 
-## 14. 当前尚未实现的模块
+## 15. 当前尚未实现的模块
 
 以下模块均未实现：
 
-- 输入 Schema；
-- lookup Schema；
+- Schema 驱动的校验器；
 - 输入校验器；
 - 净效用计算器；
 - 固定 `lambda` 选择器；

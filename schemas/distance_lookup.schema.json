@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/CCX39/pcv-stage2-allocation/schemas/distance_lookup.schema.json",
+  "title": "Stage2 MVP Distance Lookup",
+  "description": "Draft schema for offline distance-to-quality lookup profiles used by Stage2 candidate-set construction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "lookup_profile_id",
+    "semantics",
+    "distance_unit",
+    "quality_levels",
+    "source",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lookup_profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "semantics": {
+      "const": "cap"
+    },
+    "distance_unit": {
+      "const": "normalized_render_distance"
+    },
+    "quality_levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/qualityLevel"
+      }
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    }
+  },
+  "$defs": {
+    "qualityLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level_id",
+        "pdl_ratio",
+        "quality_label"
+      ],
+      "properties": {
+        "level_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pdl_ratio": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "quality_label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset",
+        "renderer",
+        "metric",
+        "threshold_profile",
+        "source_runs",
+        "notes"
+      ],
+      "properties": {
+        "dataset": {
+          "type": "string",
+          "minLength": 1
+        },
+        "renderer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "metric": {
+          "type": "string",
+          "minLength": 1
+        },
+        "threshold_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_runs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "view_context",
+        "target_id",
+        "distance_match",
+        "lookup_level",
+        "threshold_profile"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "view_context": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "distance_match": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "exact_distance"
+              ],
+              "properties": {
+                "exact_distance": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "distance_min",
+                "distance_max"
+              ],
+              "properties": {
+                "distance_min": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "distance_max": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            }
+          ]
+        },
+        "lookup_level": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "threshold_profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

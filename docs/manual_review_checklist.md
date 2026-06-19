@@ -2,14 +2,14 @@ Languages: English | [中文](manual_review_checklist.zh-CN.md)
 
 # Manual Review Checklist
 
-Use this checklist to review the Phase 0A and Phase 0A.1 outputs and verify that the Stage2 contract has not gone beyond the approved scope.
+Use this checklist to review the Phase 0A through Phase 0B outputs and verify that the Stage2 contract has not gone beyond the approved scope.
 
 ## 1. Project Boundary
 
 - [ ] Can I explain the responsibility difference between Stage1 and Stage2 in my own words?
 - [ ] Can I explain why this repository is not a complete player?
 - [ ] Can I explain why the distance calibration project is not the Stage2 allocator?
-- [ ] Can I list the functions explicitly not implemented in Phase 0A?
+- [ ] Can I list the functions explicitly not implemented through Phase 0B?
 
 ## 2. Mathematical Model
 
@@ -55,8 +55,18 @@ Use this checklist to review the Phase 0A and Phase 0A.1 outputs and verify that
 - [ ] Can I identify which future fields may initially use proxy values?
 - [ ] Can I explain why proxy values must not be described as real decoding measurements?
 - [ ] Can I explain which provenance type lookup belongs to?
+- [ ] Can I explain why D0-4 remains `DRAFT` after Phase 0B?
 
-## 7. Codex Output Review
+## 7. Schema Review
+
+- [ ] Can I explain the responsibilities of `stage2_input.schema.json`, `distance_lookup.schema.json`, and `stage2_result.schema.json`?
+- [ ] Can I distinguish input data, lookup data, and solver result data?
+- [ ] Can I explain why Schema constrains format but does not mean the solver has been implemented?
+- [ ] Can I explain why the lookup Schema uses `semantics = cap`?
+- [ ] Can I explain why normalized render distance is not physical meters?
+- [ ] Can I explain why `reference_docs/` must not be committed even though it informed the Schema draft?
+
+## 8. Codex Output Review
 
 - [ ] Does any document introduce an unconfirmed new algorithm assumption?
 - [ ] Is D0-1 correctly recorded as resolved?
@@ -65,15 +75,15 @@ Use this checklist to review the Phase 0A and Phase 0A.1 outputs and verify that
 - [ ] Are English and Chinese documents technically consistent?
 - [ ] Is the Chinese version natural rather than mechanically translated?
 - [ ] Does the Chinese version avoid unnecessary English for ordinary concepts?
-- [ ] Were any algorithm source files, Schemas, or test fixtures created by mistake?
+- [ ] Were any algorithm source files, unplanned Schema files, or test fixtures created by mistake?
 - [ ] Was `reference_docs/` modified?
-- [ ] Did any work exceed Phase 0A scope?
+- [ ] Did any work exceed Phase 0B scope?
 
-## 8. File And Scope Check
+## 9. File And Scope Check
 
 - [ ] `.gitignore` includes `/reference_docs/`.
 - [ ] `src/` contains no algorithm source file.
-- [ ] `schemas/` contains no Schema file.
+- [ ] `schemas/` contains only Schema drafts and `.gitkeep`, not validator code or fixture data.
 - [ ] `tests/fixtures/` contains no fixture data.
 - [ ] The documents state that no Stage2 solver has been implemented.
 - [ ] The documents state that near-field lookup level 5 does not force the final selected level to 5.

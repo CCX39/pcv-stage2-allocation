@@ -2,7 +2,7 @@ Languages: English | [中文](stage2_mvp_contract.zh-CN.md)
 
 # Stage2 MVP Contract
 
-Status: Phase 0A.1 draft. This document defines the planned Stage2 MVP contract and resolved MVP decision defaults. It does not implement any computation.
+Status: Phase 0B draft. This document defines the planned Stage2 MVP contract, resolved MVP decision defaults, and JSON Schema drafts. It does not implement any computation.
 
 ## 1. Purpose
 
@@ -14,7 +14,7 @@ The purpose of this project is not to build a complete streaming system immediat
 - explainable;
 - gradually portable to the Web side.
 
-Phase 0A and Phase 0A.1 only record the contract and resolved decision defaults needed before implementation.
+Phase 0A, Phase 0A.1, and Phase 0B only record the contract, resolved decision defaults, and schema drafts needed before implementation.
 
 ## 2. MVP Scope
 
@@ -30,7 +30,7 @@ The first MVP is planned to support:
 - using residual budget for local incremental upgrades;
 - outputting structured results and trace information.
 
-These are planned MVP capabilities. None of them is implemented in Phase 0A.
+These are planned MVP capabilities. None of them is implemented in Phase 0B.
 
 ## 3. Explicit Non-Goals
 
@@ -49,7 +49,7 @@ The first MVP does not include:
 
 ## 4. Input Concepts
 
-Future inputs need to express the following concepts. Phase 0A defines only the concepts and does not create a JSON Schema.
+Future inputs need to express the following concepts. Phase 0B adds a draft input schema, but does not implement a validator or solver.
 
 ### Scene-Level Fields
 
@@ -102,7 +102,7 @@ Future outputs need to express at least:
 - provenance summary;
 - warnings and exception information.
 
-Phase 0A only defines these output concepts. It does not implement output code.
+Phase 0B adds a draft result schema for these output concepts. It does not implement output code.
 
 ## 6. Mathematical Model And Symbols
 
@@ -196,7 +196,7 @@ input validation
 -> output result
 ```
 
-None of these modules is implemented in Phase 0A.
+None of these modules is implemented in Phase 0B.
 
 ## 9. Required Invariants
 
@@ -393,9 +393,30 @@ Each key data field should record a source type:
 
 Proxy values must state their formula or construction basis. Synthetic values must not be mixed with real experiment claims. Lookup records should preserve source run ID, thresholds, dataset, and rendering pipeline.
 
-## 13. Phase 0A And 0A.1 Completion Criteria
+## 13. Phase 0B Schema Drafts
 
-Phase 0A and Phase 0A.1 completion means only:
+Phase 0B adds JSON Schema Draft 2020-12 files:
+
+```text
+schemas/stage2_input.schema.json
+schemas/distance_lookup.schema.json
+schemas/stage2_result.schema.json
+```
+
+The schema drafts define data shapes for Stage2 input scenarios, distance lookup profiles, and future solver outputs. They preserve the confirmed D0-1 cap semantics, the resolved D0-2 `INFEASIBLE_BUDGET` behavior, and the resolved D0-3 multiplier-search recording requirements. D0-4 provenance vocabulary remains `DRAFT`.
+
+These schemas do not implement validation code, lookup matching, the Stage2 solver, fixtures, or experiments.
+
+For field-level details, see:
+
+```text
+docs/schema_contract.md
+docs/schema_contract.zh-CN.md
+```
+
+## 14. Phase 0A Through 0B Completion Criteria
+
+Phase 0A through Phase 0B completion means only:
 
 - project skeleton is created;
 - English and Chinese README files are created;
@@ -404,14 +425,15 @@ Phase 0A and Phase 0A.1 completion means only:
 - English and Chinese manual review checklists are created;
 - D0-1 is recorded with the confirmed user semantics;
 - D0-2 and D0-3 are resolved as MVP default strategies;
-- no solver, Schema, or fixture is implemented.
+- Stage2 input, distance lookup, and result JSON Schema drafts are created;
+- English and Chinese schema contract documents are created;
+- no solver, validator, fixture, or experiment is implemented.
 
-## 14. Not Implemented Modules
+## 15. Not Implemented Modules
 
 The following modules are not implemented:
 
-- input Schema;
-- lookup Schema;
+- schema-driven validator;
 - input validator;
 - net utility calculator;
 - fixed-`lambda` selector;

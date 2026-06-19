@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段0A.1：冻结 Stage2 MVP 默认决策**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1进一步冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略。这些阶段只建立文档、目录和可追溯的工程边界，不实现 Stage2 求解器。
+当前仓库处于**阶段0B：Stage2 MVP JSON Schema 草案**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案。这些阶段只建立文档、目录和可追溯的工程边界，不实现 Stage2 求解器。
 
 ## Work1 结构
 
@@ -35,6 +35,16 @@ near-field lookup level 5 表示候选上界不裁剪高质量档位，并不表
 - 如果 `Budget_total < B_min_feasible`，未来求解器必须显式返回 `INFEASIBLE_BUDGET`。MVP 不允许静默超预算、漏选参与决策的分块、自动放宽 lookup 约束、自动请求 Stage1 修改预算，也不引入空档位或跳过档位。
 - 未来 `lambda` 搜索采用自适应上界，在二分搜索过程中记录预算可行候选，使用确定性平局处理，并且在搜索未完全收敛时也不得输出违反预算的结果。
 
+## 阶段0B Schema 草案
+
+阶段0B新增 JSON Schema Draft 2020-12 文件：
+
+- `schemas/stage2_input.schema.json`
+- `schemas/distance_lookup.schema.json`
+- `schemas/stage2_result.schema.json`
+
+这些 Schema 只定义数据格式，不实现校验器、求解器、fixture 或实验。
+
 ## 当前目录结构
 
 ```text
@@ -48,8 +58,13 @@ pcv-stage2-allocation/
 │  ├─ decision_log.md
 │  ├─ decision_log.zh-CN.md
 │  ├─ manual_review_checklist.md
-│  └─ manual_review_checklist.zh-CN.md
+│  ├─ manual_review_checklist.zh-CN.md
+│  ├─ schema_contract.md
+│  └─ schema_contract.zh-CN.md
 ├─ schemas/
+│  ├─ stage2_input.schema.json
+│  ├─ distance_lookup.schema.json
+│  ├─ stage2_result.schema.json
 │  └─ .gitkeep
 ├─ data/
 │  └─ lookups/
@@ -70,9 +85,11 @@ pcv-stage2-allocation/
 ## 当前已有文档
 
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
+- [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
 - [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
 - [Manual Review Checklist](docs/manual_review_checklist.md)：供研究者本人审查阶段0A和阶段0A.1输出的检查问题。
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
+- [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)
 - [中文人工验收清单](docs/manual_review_checklist.zh-CN.md)
 
@@ -81,7 +98,7 @@ pcv-stage2-allocation/
 本仓库当前没有：
 
 - Stage2 求解器；
-- JSON Schema；
+- 已实现的 JSON 校验器；
 - 测试 fixture；
 - 正式实验结果；
 - Web 播放器集成；
@@ -91,4 +108,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段0A和阶段0A.1经人工审查后，后续阶段可以再定义 Schema、准备受控 fixture、实现求解器、加入校验并运行正式实验。这些工作均不属于本轮范围。
+阶段0B经人工审查后，后续阶段可以再加入校验器工具、准备受控 fixture、实现求解器、加入端到端检查并运行正式实验。这些工作均不属于本轮范围。
