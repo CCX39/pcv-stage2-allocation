@@ -2,21 +2,21 @@ Languages: English | [中文](decision_log.zh-CN.md)
 
 # Decision Log
 
-Status: Phase 0A draft.
+Status: Phase 0A.1 draft.
 
 ## Summary
 
 | ID | Topic | Status |
 |---|---|---|
 | D0-1 | lookup semantics | RESOLVED_USER_CONFIRMED |
-| D0-2 | infeasible budget | PENDING_USER_DECISION |
-| D0-3 | lambda search rules | PENDING_USER_DECISION |
+| D0-2 | infeasible budget | RESOLVED_USER_CONFIRMED |
+| D0-3 | lambda search rules | RESOLVED_USER_CONFIRMED |
 | D0-4 | provenance vocabulary | DRAFT |
 
 ```text
 D0-1 lookup semantics       RESOLVED_USER_CONFIRMED
-D0-2 infeasible budget      PENDING_USER_DECISION
-D0-3 lambda search rules    PENDING_USER_DECISION
+D0-2 infeasible budget      RESOLVED_USER_CONFIRMED
+D0-3 lambda search rules    RESOLVED_USER_CONFIRMED
 D0-4 provenance vocabulary  DRAFT
 ```
 
@@ -56,14 +56,14 @@ Confirmed details:
 | Topic | Behavior when `Budget_total` is below the minimum feasible data size |
 | Background | Each participating tile must choose exactly one allowed quality level. If the total budget is below the sum of per-tile minimum allowed data sizes, the constraints cannot all be satisfied. |
 | Options | Return `INFEASIBLE_BUDGET`; ask Stage1 to increase budget; relax selected hard constraints; allow some invisible tiles not to download; introduce an explicit empty or skip level. |
-| Current candidate | Explicit `INFEASIBLE_BUDGET` is the safest first-MVP candidate, but this is not confirmed. |
+| Confirmed option | Return explicit `INFEASIBLE_BUDGET` when `Budget_total < B_min_feasible`. |
 | Benefits | A visible infeasible state avoids silently violating budget or candidate-set constraints. |
-| Risks | Returning an error requires upper layers or experiments to handle failed allocation cases. |
-| Impact on code | Later solver needs a minimum feasible budget check before multiplier search. |
-| Impact on experiments | Experiment reports must distinguish infeasible cases from normal solver failures. |
-| Impact on thesis/report prose | Must not claim the strategy is finalized until the user confirms it. |
-| Current status | PENDING_USER_DECISION |
-| Follow-up owner | Researcher/user decision required before implementation. |
+| Risks | Upper layers or experiment scripts must handle the explicit infeasible state. |
+| Impact on code | Later solver must check `B_min_feasible` before multiplier search and return structured infeasible output. |
+| Impact on experiments | Experiment reports must distinguish incompatible input budgets from algorithm failures. |
+| Impact on thesis/report prose | This should be described as a hard-constraint incompatibility, not a solver crash. |
+| Current status | RESOLVED_USER_CONFIRMED |
+| Follow-up owner | Researcher verifies future implementation and reports against this default. |
 
 Minimum feasible budget concept:
 
@@ -81,7 +81,23 @@ If:
 Budget_total < B_min_feasible
 ```
 
-the solver cannot satisfy all current hard constraints.
+the solver must return structured output such as:
+
+```text
+status = INFEASIBLE_BUDGET
+budget_total = ...
+b_min_feasible = ...
+budget_gap = b_min_feasible - budget_total
+```
+
+Confirmed constraints:
+
+- every participating tile still selects exactly one quality level;
+- the solver must not silently exceed budget;
+- the solver must not fabricate feasibility by dropping participating tiles;
+- the solver must not automatically relax lookup candidate sets;
+- the solver must not automatically ask Stage1 to change `Budget_total`;
+- the MVP does not introduce an empty level or skip level.
 
 ## D0-3 Lambda Search Rules
 
@@ -89,27 +105,49 @@ the solver cannot satisfy all current hard constraints.
 |---|---|
 | Decision ID | D0-3 |
 | Topic | Engineering rules for one-dimensional multiplier search |
-| Background | Reference documents support Lagrangian relaxation and multiplier search, but implementation-level rules still need to be frozen. |
-| Options | Fixed or adaptive upper bound; fixed tolerance; deterministic tie-breaking; maximum iteration count; retaining nearest feasible solution; score-vs-size ranking among close feasible solutions. |
-| Current candidate | Adaptive doubling for upper-bound discovery, smaller data size on ties, fixed tolerance, maximum iterations, and retaining the latest feasible solution are reasonable candidates, but not confirmed. |
-| Benefits | Freezing these rules before implementation improves determinism and reviewability. |
+| Background | Reference documents support Lagrangian relaxation and multiplier search. Phase 0A.1 freezes MVP defaults for bracketing, feasible-solution recording, tie-breaking, and stopping behavior. |
+| Options | Fixed or adaptive upper bound; fixed tolerance; deterministic tie-breaking; maximum iteration count; retaining feasible solutions; ranking among close feasible solutions. |
+| Confirmed option | Adaptive upper-bound bracketing, bisection, best feasible solution tracking, deterministic tie-breaking, and explicit abnormal status if feasibility cannot be recovered despite `B_min_feasible <= Budget_total`. |
+| Benefits | Frozen rules improve determinism, reviewability, and reproducibility. |
 | Risks | Different tie-breaking or tolerance choices can change selected levels under near-equal scores. |
-| Impact on code | Later implementation must expose or record search configuration. |
+| Impact on code | Later implementation must expose and record search configuration and search traces. |
 | Impact on experiments | Experiments must log search settings to keep results reproducible. |
 | Impact on thesis/report prose | Search should be described as relying on monotonic non-increasing total data demand, not as proving global MCKP optimality. |
-| Current status | PENDING_USER_DECISION |
-| Follow-up owner | Researcher/user decision required before implementation. |
+| Current status | RESOLVED_USER_CONFIRMED |
+| Follow-up owner | Researcher verifies future implementation and reports against this default. |
 
-Open items:
+Confirmed rules:
 
-- `lambda` initial lower bound;
-- fixed or adaptive `lambda` upper bound;
-- floating-point tolerance;
-- deterministic tie-breaking;
-- maximum search iterations;
-- termination condition;
-- whether to record the nearest feasible solution;
-- selection rule among close-scoring feasible solutions.
+- Before search, complete input validation, lookup parsing, `allowed_levels` construction, and `B_min_feasible` check.
+- If budget is infeasible, return `INFEASIBLE_BUDGET` and do not enter multiplier search.
+- Use `lambda_low = 0` and an adaptive positive `lambda_high`.
+- Double `lambda_high` until a budget-feasible solution appears or `lambda_max_bracket_steps` is reached.
+- Record configuration such as `lambda_initial_high`, `lambda_max_bracket_steps`, `score_epsilon`, `lambda_epsilon`, and `max_iterations`.
+- During bisection, record `lambda`, `total_bytes`, `total_net_utility`, `is_budget_feasible`, and `selected_levels`.
+- Update the current best feasible solution whenever a feasible solution appears.
+
+Best feasible solution ranking:
+
+1. higher total net utility;
+2. if nearly equal, higher budget utilization;
+3. if still tied, lower total expected decoding latency;
+4. if still tied, deterministic comparison by `tile_id` and `level_id`.
+
+Single-tile tie-breaking under fixed `lambda`:
+
+1. higher Lagrangian score;
+2. if scores are within tolerance, smaller data size;
+3. if still tied, smaller decoding latency;
+4. if still tied, smaller `level_id`.
+
+Stopping rules:
+
+- `max_iterations` is the primary stop condition.
+- `lambda_epsilon` and `no_change_rounds` may be used as auxiliary stop conditions.
+- The solver must not output a budget-violating result because search did not fully converge.
+- If no feasible solution is found despite `B_min_feasible <= Budget_total`, return `NUMERICAL_ERROR` or `INTERNAL_CONSTRAINT_VIOLATION` and record the search trace.
+
+Residual-budget local upgrades remain planned for implementation. They must stay inside `allowed_levels`, require `delta_R > 0` and `delta_U > 0`, and preserve the budget and lookup constraints.
 
 ## D0-4 Provenance Vocabulary
 

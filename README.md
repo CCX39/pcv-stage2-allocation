@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 0A: project skeleton and Stage2 MVP algorithm contract draft**. Phase 0A creates documentation and traceable engineering boundaries only. It does not implement the Stage2 solver.
+This repository is currently at **Phase 0A.1: resolved Stage2 MVP decision defaults**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 freezes the MVP default behavior for infeasible budgets and `lambda` search rules. These phases create documentation and traceable engineering boundaries only. They do not implement the Stage2 solver.
 
 ## Work1 Structure
 
@@ -27,6 +27,13 @@ allowed_levels = {1, 2, ..., lookup_level}
 ```
 
 Near-field lookup level 5 means the upper-bound cap does not remove high-quality candidates. It does not force the final allocator to choose level 5.
+
+## Phase 0A.1 Decision Defaults
+
+Phase 0A.1 resolves two MVP defaults:
+
+- If `Budget_total < B_min_feasible`, the future solver must return `INFEASIBLE_BUDGET` explicitly. It must not silently exceed budget, drop participating tiles, relax lookup constraints, request Stage1 changes automatically, or introduce an empty/skip level in the MVP.
+- The future `lambda` search uses an adaptive upper bound, records feasible candidates during bisection, applies deterministic tie-breaking, and must never output a budget-violating result when search does not fully converge.
 
 ## Current Structure
 
@@ -62,7 +69,7 @@ pcv-stage2-allocation/
 
 ## Available Documents
 
-- [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and unresolved decisions.
+- [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and resolved MVP decision defaults.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
 - [Manual Review Checklist](docs/manual_review_checklist.md): questions for researcher-side review of the generated Stage2 contract.
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
@@ -84,4 +91,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 0A is reviewed, later phases may define schemas, prepare controlled fixtures, implement the solver, add validation, and run formal experiments. Those steps are intentionally outside the current scope.
+After Phase 0A and Phase 0A.1 are reviewed, later phases may define schemas, prepare controlled fixtures, implement the solver, add validation, and run formal experiments. Those steps are intentionally outside the current scope.

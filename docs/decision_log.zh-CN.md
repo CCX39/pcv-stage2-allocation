@@ -2,21 +2,21 @@
 
 # 决策记录
 
-状态：阶段0A草案。
+状态：阶段0A.1草案。
 
 ## 总表
 
 | 编号 | 主题 | 状态 |
 |---|---|---|
 | D0-1 | lookup 语义 | RESOLVED_USER_CONFIRMED |
-| D0-2 | 预算不可行行为 | PENDING_USER_DECISION |
-| D0-3 | lambda 搜索规则 | PENDING_USER_DECISION |
+| D0-2 | 预算不可行行为 | RESOLVED_USER_CONFIRMED |
+| D0-3 | lambda 搜索规则 | RESOLVED_USER_CONFIRMED |
 | D0-4 | 数据来源词汇 | DRAFT |
 
 ```text
 D0-1 lookup semantics       RESOLVED_USER_CONFIRMED
-D0-2 infeasible budget      PENDING_USER_DECISION
-D0-3 lambda search rules    PENDING_USER_DECISION
+D0-2 infeasible budget      RESOLVED_USER_CONFIRMED
+D0-3 lambda search rules    RESOLVED_USER_CONFIRMED
 D0-4 provenance vocabulary  DRAFT
 ```
 
@@ -56,14 +56,14 @@ D0-4 provenance vocabulary  DRAFT
 | 主题 | `Budget_total` 低于最低可行数据量时的行为 |
 | 背景 | 每个参与决策的分块必须恰好选择一个允许档位。如果总预算低于所有分块最低允许数据量之和，当前硬约束无法同时满足。 |
 | 可选方案 | 返回 `INFEASIBLE_BUDGET`；请求 Stage1 提高预算；放宽某些硬约束；允许部分不可见分块不下载；引入显式空档位或跳过档位。 |
-| 当前候选 | 显式返回 `INFEASIBLE_BUDGET` 是第一版 MVP 较安全的候选，但尚未确认。 |
+| 已确认方案 | 当 `Budget_total < B_min_feasible` 时显式返回 `INFEASIBLE_BUDGET`。 |
 | 优点 | 显式不可行状态可以避免静默违反预算或候选集合约束。 |
-| 风险 | 返回错误状态意味着上层流程或实验脚本需要处理分配失败。 |
-| 对代码的影响 | 后续求解器需要在乘子搜索前检查最低可行预算。 |
-| 对实验的影响 | 实验报告需要区分不可行样本和普通求解失败。 |
-| 对论文或汇报表述的影响 | 用户确认前不能写成最终策略。 |
-| 当前状态 | PENDING_USER_DECISION |
-| 后续确认责任人 | 需要研究者/用户在实现前确认。 |
+| 风险 | 上层流程或实验脚本需要处理显式不可行状态。 |
+| 对代码的影响 | 后续求解器必须在乘子搜索前检查 `B_min_feasible`，并返回结构化不可行输出。 |
+| 对实验的影响 | 实验报告需要区分输入预算与硬约束不兼容，以及算法本身失败。 |
+| 对论文或汇报表述的影响 | 应描述为硬约束不兼容，而不是求解器崩溃。 |
+| 当前状态 | RESOLVED_USER_CONFIRMED |
+| 后续确认责任人 | 研究者在后续实现和报告中核对该默认策略。 |
 
 最低可行预算概念：
 
@@ -81,7 +81,23 @@ sum over i [
 Budget_total < B_min_feasible
 ```
 
-则求解器无法同时满足当前所有硬约束。
+则求解器必须返回如下结构化信息：
+
+```text
+status = INFEASIBLE_BUDGET
+budget_total = ...
+b_min_feasible = ...
+budget_gap = b_min_feasible - budget_total
+```
+
+已确认约束：
+
+- 每个参与决策的分块仍必须恰好选择一个质量档位；
+- 不允许静默超预算；
+- 不允许通过漏选参与决策的分块伪造预算可行；
+- 不允许自动放宽 lookup 候选集合；
+- 不允许自动请求 Stage1 修改 `Budget_total`；
+- MVP 不引入空档位或跳过档位。
 
 ## D0-3 lambda 搜索规则
 
@@ -89,27 +105,49 @@ Budget_total < B_min_feasible
 |---|---|
 | 决策编号 | D0-3 |
 | 主题 | 一维乘子搜索的工程规则 |
-| 背景 | 参考文档支持拉格朗日松弛与乘子搜索，但实现层面的搜索规则仍需冻结。 |
+| 背景 | 参考文档支持拉格朗日松弛与乘子搜索。阶段0A.1冻结括区间、可行解记录、平局处理和停止行为等 MVP 默认规则。 |
 | 可选方案 | 固定或自适应上界；固定容差；确定性平局处理；最大迭代次数；保留最近可行解；在得分接近的可行解之间按得分或数据量排序。 |
-| 当前候选 | 自适应加倍寻找上界、平局时优先小数据量、固定容差、最大迭代次数和保留最近可行解都可以作为候选，但尚未确认。 |
-| 优点 | 实现前冻结这些规则有助于确定性和可审查性。 |
+| 已确认方案 | 自适应上界括区间、二分搜索、最佳可行解记录、确定性平局处理，以及在 `B_min_feasible <= Budget_total` 但仍无法恢复可行解时返回明确异常状态。 |
+| 优点 | 冻结这些规则有助于确定性、可审查性和可复现性。 |
 | 风险 | 不同平局处理或容差可能在得分接近时改变最终档位选择。 |
-| 对代码的影响 | 后续实现必须暴露或记录搜索配置。 |
+| 对代码的影响 | 后续实现必须暴露并记录搜索配置和搜索轨迹。 |
 | 对实验的影响 | 实验必须记录搜索设置以保证可复现。 |
 | 对论文或汇报表述的影响 | 搜索依据应写为总数据需求随 `lambda` 单调不增，而不是证明原始 MCKP 全局最优。 |
-| 当前状态 | PENDING_USER_DECISION |
-| 后续确认责任人 | 需要研究者/用户在实现前确认。 |
+| 当前状态 | RESOLVED_USER_CONFIRMED |
+| 后续确认责任人 | 研究者在后续实现和报告中核对该默认策略。 |
 
-待确认问题：
+已确认规则：
 
-- `lambda` 初始下界；
-- `lambda` 上界是固定配置还是自适应寻找；
-- 浮点容差；
-- 确定性平局处理；
-- 最大搜索迭代次数；
-- 终止条件；
-- 是否记录最近可行解；
-- 多个得分接近的可行解之间如何选择。
+- 搜索前先完成输入校验、lookup 解析、`allowed_levels` 构造和 `B_min_feasible` 检查。
+- 如果预算不可行，直接返回 `INFEASIBLE_BUDGET`，不进入乘子搜索。
+- 使用 `lambda_low = 0` 和自适应正数 `lambda_high`。
+- 持续加倍 `lambda_high`，直到出现预算可行解或达到 `lambda_max_bracket_steps`。
+- 记录 `lambda_initial_high`、`lambda_max_bracket_steps`、`score_epsilon`、`lambda_epsilon` 和 `max_iterations` 等配置。
+- 二分搜索中记录 `lambda`、`total_bytes`、`total_net_utility`、`is_budget_feasible` 和 `selected_levels`。
+- 每次出现预算可行解时，更新当前最佳可行解。
+
+最佳可行解排序：
+
+1. 总净效用更高；
+2. 若近似相同，预算利用率更高；
+3. 若仍相同，总预计解码耗时更低；
+4. 若仍相同，按 `tile_id` 和 `level_id` 的确定性顺序比较。
+
+固定 `lambda` 下单个分块选档的平局规则：
+
+1. 拉格朗日得分更高；
+2. 若得分在容差内近似相同，选择数据量更小的档位；
+3. 若仍相同，选择解码耗时更小的档位；
+4. 若仍相同，选择 `level_id` 更小的档位。
+
+停止规则：
+
+- `max_iterations` 是主要停止条件。
+- 可以使用 `lambda_epsilon` 和 `no_change_rounds` 作为辅助停止条件。
+- 不得因为搜索未完全收敛而输出违反预算的结果。
+- 若在 `B_min_feasible <= Budget_total` 的情况下仍无法获得可行解，应返回 `NUMERICAL_ERROR` 或 `INTERNAL_CONSTRAINT_VIOLATION`，并记录搜索轨迹。
+
+剩余预算局部升级仍作为后续实现计划保留。升级必须限制在 `allowed_levels` 内，满足 `delta_R > 0` 和 `delta_U > 0`，并保持预算和 lookup 约束。
 
 ## D0-4 数据来源词汇
 

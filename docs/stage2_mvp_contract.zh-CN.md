@@ -2,7 +2,7 @@
 
 # Stage2 MVP 契约
 
-状态：阶段0A草案。本文档定义计划中的 Stage2 MVP 契约，不实现任何计算。
+状态：阶段0A.1草案。本文档定义计划中的 Stage2 MVP 契约和已冻结的 MVP 默认决策，不实现任何计算。
 
 ## 1. 项目目的
 
@@ -14,7 +14,7 @@
 - 可解释；
 - 可逐步移植到 Web 端。
 
-阶段0A只记录实现前必须明确的契约。
+阶段0A和阶段0A.1只记录实现前必须明确的契约与已冻结默认决策。
 
 ## 2. MVP 范围
 
@@ -219,8 +219,8 @@ allowed_levels = {1, 2, ..., j_max_dist}
 
 ```text
 D0-1 lookup semantics       RESOLVED_USER_CONFIRMED
-D0-2 infeasible budget      PENDING_USER_DECISION
-D0-3 lambda search rules    PENDING_USER_DECISION
+D0-2 infeasible budget      RESOLVED_USER_CONFIRMED
+D0-3 lambda search rules    RESOLVED_USER_CONFIRMED
 D0-4 provenance vocabulary  DRAFT
 ```
 
@@ -236,13 +236,104 @@ sum over i [
 ]
 ```
 
-如果 `Budget_total < B_min_feasible`，当前候选处理方式包括返回 `INFEASIBLE_BUDGET`、请求 Stage1 提高预算、放宽某些硬约束、允许部分不可见分块不下载，或增加基础空档位/跳过档位。最终行为尚未确认。
+如果：
 
-对第一版 MVP 而言，显式返回不可行状态通常是最安全、最可解释的候选，因为它不会静默违反预算或候选集合约束。这只是建议候选，不是已确认决策。
+```text
+Budget_total < B_min_feasible
+```
+
+MVP 默认行为是显式返回结构化不可行状态：
+
+```text
+status = INFEASIBLE_BUDGET
+budget_total = ...
+b_min_feasible = ...
+budget_gap = b_min_feasible - budget_total
+```
+
+这不是算法失败，而是输入预算与当前硬约束不兼容。
+
+未来求解器必须保持以下约束：
+
+- 每个参与决策的分块仍必须恰好选择一个质量档位；
+- 不允许静默超预算；
+- 不允许通过漏选参与决策的分块伪造预算可行；
+- 不允许自动放宽 lookup 候选集合；
+- 不允许自动请求 Stage1 修改预算，也不允许自动修改 `Budget_total`；
+- MVP 不引入空档位或跳过档位。
 
 ### D0-3 乘子搜索规则
 
-未来实现前仍需冻结 `lambda` 下界、上界寻找策略、浮点容差、确定性平局处理、最大迭代次数、终止条件、是否保留最近可行解，以及多个相近可行解之间的选择规则。阶段0A只记录这些问题。
+MVP 默认乘子搜索规则已经冻结。
+
+进入 `lambda` 搜索前，未来求解器必须先完成：
+
+```text
+输入校验
+lookup 解析
+allowed_levels 构造
+B_min_feasible 检查
+```
+
+如果预算不可行，求解器直接返回 `INFEASIBLE_BUDGET`，不进入乘子搜索。
+
+搜索采用自适应上界：
+
+```text
+lambda_low = 0
+lambda_high = initial positive value
+```
+
+如果 `lambda_high` 下的选择仍超预算，则持续加倍上界：
+
+```text
+lambda_high *= 2
+```
+
+直到出现预算可行解，或达到最大括区间次数。后续实现必须记录配置字段，例如：
+
+```text
+lambda_initial_high
+lambda_max_bracket_steps
+```
+
+完成括区间后，在 `[lambda_low, lambda_high]` 上执行一维二分搜索。每次迭代应记录：
+
+```text
+lambda
+total_bytes
+total_net_utility
+is_budget_feasible
+selected_levels
+```
+
+只要某次迭代得到预算可行解，就更新当前最佳可行解。
+
+当存在多个可行解时，MVP 默认按以下顺序选择：
+
+1. 总净效用更高；
+2. 若近似相同，预算利用率更高；
+3. 若仍相同，总预计解码耗时更低；
+4. 若仍相同，按 `tile_id` 和 `level_id` 的确定性顺序比较。
+
+固定 `lambda` 下单个分块选档也必须确定性处理平局：
+
+1. 拉格朗日得分更高；
+2. 若得分在容差内近似相同，选择数据量更小的档位；
+3. 若仍相同，选择解码耗时更小的档位；
+4. 若仍相同，选择 `level_id` 更小的档位。
+
+后续实现必须记录浮点和搜索配置，包括：
+
+```text
+score_epsilon
+lambda_epsilon
+max_iterations
+```
+
+主要停止条件为 `max_iterations`，也可以辅以 `lambda_epsilon` 和 `no_change_rounds`。但不得因为搜索未完全收敛而输出违反预算的结果。如果在 `B_min_feasible <= Budget_total` 的情况下仍无法获得可行解，应返回明确异常状态，例如 `NUMERICAL_ERROR` 或 `INTERNAL_CONSTRAINT_VIOLATION`，并记录搜索轨迹。
+
+乘子搜索得到预算可行解后，后续 MVP 求解器可以使用剩余预算做局部增量升级。升级必须限制在 `allowed_levels` 内，满足 `delta_R > 0`、`delta_U > 0`，并保证升级后不超预算。局部升级规则将在求解器实现阶段细化，但不得违反预算和 lookup 约束。
 
 ## 11. 预期状态码与错误类别
 
@@ -258,7 +349,7 @@ SUCCESS
 INFEASIBLE_BUDGET
 ```
 
-`Budget_total` 低于最低可行数据量。最终处理策略仍待确认。
+`Budget_total` 低于最低可行数据量。MVP 默认返回该显式状态，并记录 `budget_total`、`b_min_feasible` 和 `budget_gap`。
 
 ```text
 INVALID_INPUT
@@ -302,9 +393,9 @@ INTERNAL_CONSTRAINT_VIOLATION
 
 代理值必须说明公式或构造依据。合成值不能与真实实验结论混用。lookup 记录应保留来源 run ID、阈值、数据集和渲染管线。
 
-## 13. 阶段0A完成判据
+## 13. 阶段0A与0A.1完成判据
 
-阶段0A完成仅表示：
+阶段0A和阶段0A.1完成仅表示：
 
 - 项目骨架创建完成；
 - 中英文 README 创建完成；
@@ -312,7 +403,7 @@ INTERNAL_CONSTRAINT_VIOLATION
 - 中英文决策记录创建完成；
 - 中英文人工验收清单创建完成；
 - D0-1 已按用户确认语义记录；
-- D0-2 和 D0-3 仍保持待确认；
+- D0-2 和 D0-3 已冻结为 MVP 默认策略；
 - 没有实现求解器、Schema 或 fixture。
 
 ## 14. 当前尚未实现的模块
