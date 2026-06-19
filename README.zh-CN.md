@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段0C：Stage2 手算 fixture 集**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture。这些阶段只建立文档、目录和可追溯的工程边界，不实现 Stage2 求解器。
+当前仓库处于**阶段0D：最小 handcheck fixture 校验**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本。这些阶段只建立文档、校验脚手架和可追溯的工程边界，不实现 Stage2 求解器。
 
 ## Work1 结构
 
@@ -51,6 +51,19 @@ near-field lookup level 5 表示候选上界不裁剪高质量档位，并不表
 
 该 fixture 用于人工核对和后续求解器验证，不是真实 Longdress 实验数据，也不是正式实验结果。
 
+## 阶段0D 校验脚本
+
+阶段0D新增一个最小脚本，用于把 handcheck fixture JSON 文件与 Schema 草案做校验，并核对手算中的 lookup cap 行为、`B_min_feasible`、success 结果和 infeasible 结果。
+
+在仓库根目录运行：
+
+```powershell
+python -m pip install -r requirements.txt
+python scripts/validate_handcheck_fixtures.py
+```
+
+该脚本只是 fixture 防线，不是 Stage2 求解器。
+
 ## 当前目录结构
 
 ```text
@@ -58,6 +71,7 @@ pcv-stage2-allocation/
 ├─ README.md
 ├─ README.zh-CN.md
 ├─ .gitignore
+├─ requirements.txt
 ├─ docs/
 │  ├─ stage2_mvp_contract.md
 │  ├─ stage2_mvp_contract.zh-CN.md
@@ -88,6 +102,8 @@ pcv-stage2-allocation/
 │     └─ .gitkeep
 ├─ src/
 │  └─ .gitkeep
+├─ scripts/
+│  └─ validate_handcheck_fixtures.py
 ├─ outputs/
 │  └─ .gitkeep
 └─ reference_docs/
@@ -115,7 +131,7 @@ pcv-stage2-allocation/
 本仓库当前没有：
 
 - Stage2 求解器；
-- 已实现的 JSON 校验器；
+- 通用 JSON 校验器；
 - fixture 生成器；
 - 正式实验结果；
 - Web 播放器集成；
@@ -125,4 +141,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段0C经人工审查后，后续阶段可以再加入校验器工具、实现求解器、加入端到端检查并运行正式实验。这些工作均不属于本轮范围。
+阶段0D经人工审查后，后续阶段可以再加入 Python 项目骨架和模型定义，扩展校验器工具，实现求解器，加入端到端检查并运行正式实验。这些工作均不属于本轮范围。

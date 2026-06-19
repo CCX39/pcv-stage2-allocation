@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 0C: handcheck Stage2 fixture set**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C adds a small 3-tile by 3-level handcheck fixture. These phases create documentation and traceable engineering boundaries only. They do not implement the Stage2 solver.
+This repository is currently at **Phase 0D: minimal handcheck fixture validation**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D adds a minimal schema and handcheck validation script. These phases create documentation, validation scaffolding, and traceable engineering boundaries only. They do not implement the Stage2 solver.
 
 ## Work1 Structure
 
@@ -51,6 +51,19 @@ Phase 0C adds a synthetic `tests/fixtures/handcheck_3x3/` fixture set. It contai
 
 The fixture is for manual checking and later solver validation. It is not real Longdress experiment data and is not a formal experiment result.
 
+## Phase 0D Validation Script
+
+Phase 0D adds a minimal script that validates the handcheck fixture JSON files against the draft schemas and checks the hand-calculated lookup cap behavior, `B_min_feasible`, success result, and infeasible result.
+
+Run from the repository root:
+
+```powershell
+python -m pip install -r requirements.txt
+python scripts/validate_handcheck_fixtures.py
+```
+
+This script is a fixture guardrail, not a Stage2 solver.
+
 ## Current Structure
 
 ```text
@@ -58,6 +71,7 @@ pcv-stage2-allocation/
 ├─ README.md
 ├─ README.zh-CN.md
 ├─ .gitignore
+├─ requirements.txt
 ├─ docs/
 │  ├─ stage2_mvp_contract.md
 │  ├─ stage2_mvp_contract.zh-CN.md
@@ -88,6 +102,8 @@ pcv-stage2-allocation/
 │     └─ .gitkeep
 ├─ src/
 │  └─ .gitkeep
+├─ scripts/
+│  └─ validate_handcheck_fixtures.py
 ├─ outputs/
 │  └─ .gitkeep
 └─ reference_docs/
@@ -115,7 +131,7 @@ pcv-stage2-allocation/
 This repository currently has no:
 
 - Stage2 solver;
-- implemented JSON validator;
+- general-purpose JSON validator;
 - fixture generator;
 - formal experiment result;
 - Web player integration;
@@ -125,4 +141,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 0C is reviewed, later phases may add validator tooling, implement the solver, add end-to-end checks, and run formal experiments. Those steps are intentionally outside the current scope.
+After Phase 0D is reviewed, later phases may add a Python project skeleton and model definitions, broaden validator tooling, implement the solver, add end-to-end checks, and run formal experiments. Those steps are intentionally outside the current scope.

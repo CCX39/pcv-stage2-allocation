@@ -1,6 +1,6 @@
 # 当前实现状态
 
-本文是 `pcv-stage2-allocation` 的阶段0C.1接手说明，用来记录截至阶段0C的实现状态，方便新的对话或人工审查者快速继续工作。
+本文是 `pcv-stage2-allocation` 的阶段0D接手说明，用来记录截至阶段0D的实现状态，方便新的对话或人工审查者快速继续工作。
 
 ## 项目当前目标
 
@@ -13,16 +13,16 @@
 当前已完成到：
 
 ```text
-Phase 0C: handcheck fixture set completed
+Phase 0D: minimal schema/fixture validation script completed
 ```
 
 下一步建议进入：
 
 ```text
-Phase 0D or Phase 1 preparation: validator / core solver preparation
+Phase 1A preparation: Python project skeleton + dataclass/model definitions
 ```
 
-目前尚未实现 validator、求解器、实验运行器或播放器集成。
+目前尚未实现 Stage2 求解器、通用 validator、实验运行器或播放器集成。
 
 ## 已完成提交记录
 
@@ -54,6 +54,8 @@ D0-4 provenance vocabulary  DRAFT
 - `schemas/distance_lookup.schema.json`
 - `schemas/stage2_result.schema.json`
 - `tests/fixtures/handcheck_3x3/`
+- `scripts/validate_handcheck_fixtures.py`
+- `requirements.txt`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
 - `docs/decision_log.zh-CN.md`
@@ -66,6 +68,17 @@ D0-4 provenance vocabulary  DRAFT
 - expected success result；
 - expected infeasible result；
 - 中英文手算说明。
+
+## 校验命令
+
+在仓库根目录运行：
+
+```powershell
+python -m pip install -r requirements.txt
+python scripts/validate_handcheck_fixtures.py
+```
+
+脚本会校验 Schema 草案本身、校验 handcheck JSON 文件是否符合 Schema、重新计算 lookup cap 解析、重新计算 `B_min_feasible`，并核对 success 和 infeasible 的预期结果。它不是求解器。
 
 ## 手算 Fixture 核心结果
 
@@ -90,8 +103,7 @@ status = INFEASIBLE_BUDGET
 ## 当前尚未实现
 
 - Python 或 TypeScript 求解器；
-- validator；
-- JSON Schema 自动校验脚本；
+- 通用 validator；
 - `lambda` search；
 - local upgrade；
 - baselines；
@@ -102,13 +114,7 @@ status = INFEASIBLE_BUDGET
 
 ## 下一步建议
 
-下一步不建议直接写完整 solver。更稳妥的选择是先做其中一项：
-
-```text
-Phase 0D: minimal schema/fixture validation script
-```
-
-或：
+下一步不建议直接写完整 solver。更稳妥的选择是先做：
 
 ```text
 Phase 1A: Python project skeleton + dataclass/model definitions
@@ -124,5 +130,6 @@ Phase 1A: Python project skeleton + dataclass/model definitions
 2. 再读 `docs/stage2_mvp_contract.zh-CN.md`。
 3. 再读 `docs/schema_contract.zh-CN.md`。
 4. 再看 `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`。
-5. 当前不要修改 D0-1、D0-2、D0-3 的冻结语义。
-6. 不要把 `handcheck_3x3` fixture 当成真实 Longdress 实验。
+5. 安装依赖后运行 `python scripts/validate_handcheck_fixtures.py`。
+6. 当前不要修改 D0-1、D0-2、D0-3 的冻结语义。
+7. 不要把 `handcheck_3x3` fixture 当成真实 Longdress 实验。

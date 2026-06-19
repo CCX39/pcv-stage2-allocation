@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 0C.1 handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 0C so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 0D handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 0D so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,16 +13,16 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 0C: handcheck fixture set completed
+Phase 0D: minimal schema/fixture validation script completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 0D or Phase 1 preparation: validator / core solver preparation
+Phase 1A preparation: Python project skeleton + dataclass/model definitions
 ```
 
-No validator, solver, experiment runner, or player integration has been implemented yet.
+No Stage2 solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
 
 ## Key Commit History
 
@@ -54,6 +54,8 @@ D0-4 provenance vocabulary  DRAFT
 - `schemas/distance_lookup.schema.json`
 - `schemas/stage2_result.schema.json`
 - `tests/fixtures/handcheck_3x3/`
+- `scripts/validate_handcheck_fixtures.py`
+- `requirements.txt`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
 - `docs/decision_log.zh-CN.md`
@@ -66,6 +68,17 @@ The `handcheck_3x3` fixture contains:
 - expected success result;
 - expected infeasible result;
 - bilingual hand-calculation notes.
+
+## Validation Command
+
+Run from the repository root:
+
+```powershell
+python -m pip install -r requirements.txt
+python scripts/validate_handcheck_fixtures.py
+```
+
+The script validates the draft schemas, validates the handcheck JSON files against those schemas, recomputes lookup cap resolution, recomputes `B_min_feasible`, and checks the expected success and infeasible results. It is not a solver.
 
 ## Handcheck Fixture Core Results
 
@@ -90,8 +103,7 @@ status = INFEASIBLE_BUDGET
 ## Not Implemented Yet
 
 - Python or TypeScript solver;
-- validator;
-- JSON Schema automatic validation script;
+- general-purpose validator;
 - `lambda` search;
 - local upgrade;
 - baselines;
@@ -102,13 +114,7 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into a full solver. Prefer one of these smaller next steps:
-
-```text
-Phase 0D: minimal schema/fixture validation script
-```
-
-or:
+Do not jump directly into a full solver. Prefer this smaller next step:
 
 ```text
 Phase 1A: Python project skeleton + dataclass/model definitions
@@ -124,5 +130,6 @@ For a new GPT conversation or human handoff:
 2. Then read `docs/stage2_mvp_contract.zh-CN.md`.
 3. Then read `docs/schema_contract.zh-CN.md`.
 4. Then inspect `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`.
-5. Do not change the frozen semantics of D0-1, D0-2, or D0-3.
-6. Do not treat the `handcheck_3x3` fixture as a real Longdress experiment.
+5. Run `python scripts/validate_handcheck_fixtures.py` after installing requirements.
+6. Do not change the frozen semantics of D0-1, D0-2, or D0-3.
+7. Do not treat the `handcheck_3x3` fixture as a real Longdress experiment.
