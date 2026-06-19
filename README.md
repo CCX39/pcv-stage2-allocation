@@ -98,11 +98,13 @@ pcv-stage2-allocation/
 
 ## Available Documents
 
+- [Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.md): quick handoff summary for the current phase, decisions, assets, and next-step suggestions.
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and resolved MVP decision defaults.
 - [Schema Contract](docs/schema_contract.md): explains the Stage2 input, distance lookup, and result Schema drafts.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
 - [Manual Review Checklist](docs/manual_review_checklist.md): questions for researcher-side review of the generated Stage2 contract.
 - [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md): manual calculation for the synthetic 3x3 fixture.
+- [Chinese Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
 - [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)

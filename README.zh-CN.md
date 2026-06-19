@@ -98,11 +98,13 @@ pcv-stage2-allocation/
 
 ## 当前已有文档
 
+- [当前实现状态](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)：当前阶段、决策状态、已有资产和下一步建议的快速接手说明。
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
 - [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
 - [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
 - [Manual Review Checklist](docs/manual_review_checklist.md)：供研究者本人审查阶段0A至阶段0C输出的检查问题。
 - [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md)：合成 3x3 fixture 的手算说明。
+- [Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.md)
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
 - [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)
