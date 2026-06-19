@@ -8,7 +8,6 @@
   "required": [
     "schema_version",
     "scenario_id",
-    "description",
     "budget_total_bytes",
     "eta",
     "lookup_profile_id",
