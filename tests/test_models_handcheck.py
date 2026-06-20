@@ -14,8 +14,10 @@ if str(SRC) not in sys.path:
 from pcv_stage2.io import load_distance_lookup, load_stage2_input
 from pcv_stage2.models import DistanceLookup, LookupDistanceMatch, LookupRule
 from pcv_stage2.preprocess import (
+    PreprocessError,
     compute_b_min_feasible,
     compute_net_utility,
+    match_lookup_rule,
     resolve_allowed_levels,
     resolve_lookup_for_input,
 )
@@ -114,3 +116,40 @@ def test_lookup_level_above_existing_max_keeps_all_existing_levels() -> None:
     resolution = resolve_allowed_levels(tile, near_field_lookup)
     assert resolution.lookup_level == 5
     assert list(resolution.allowed_levels) == [1, 2, 3]
+
+
+@pytest.mark.parametrize("target_id", ["T1_near_important", "upper_body"])
+def test_target_aware_lookup_rule_is_rejected(target_id: str) -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    base_lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+    tile = stage2_input.tile_by_id("T1_near_important")
+
+    lookup = DistanceLookup(
+        schema_version=base_lookup.schema_version,
+        lookup_profile_id=base_lookup.lookup_profile_id,
+        semantics="cap",
+        distance_unit=base_lookup.distance_unit,
+        quality_levels=base_lookup.quality_levels,
+        source=base_lookup.source,
+        rules=(
+            LookupRule(
+                rule_id="target_aware_rule",
+                view_context=tile.view_context,
+                target_id=target_id,
+                distance_match=LookupDistanceMatch(exact_distance=tile.distance_norm),
+                lookup_level=3,
+                threshold_profile="handcheck_cap_profile",
+            ),
+            LookupRule(
+                rule_id="null_target_fallback_rule",
+                view_context=tile.view_context,
+                target_id=None,
+                distance_match=LookupDistanceMatch(exact_distance=tile.distance_norm),
+                lookup_level=3,
+                threshold_profile="handcheck_cap_profile",
+            ),
+        ),
+    )
+
+    with pytest.raises(PreprocessError, match="Stage2Input v0.1.*target_id.*tile_id"):
+        match_lookup_rule(tile, lookup)

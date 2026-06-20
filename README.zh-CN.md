@@ -77,6 +77,10 @@ python scripts/validate_handcheck_fixtures.py
 
 模型层只是后续求解器的准备，不实现 `lambda` search、local upgrade、baseline 或 MCKP 求解。
 
+当前 `Stage2Input v0.1` 尚不支持 target-aware lookup。lookup 中非空的 `target_id` 不能被当成 `tile_id` 使用。
+
+fixture 防线脚本继续保留独立校验路径；模型层行为由 `pytest` 单独覆盖。
+
 ## 当前目录结构
 
 ```text
@@ -160,4 +164,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段0D经人工审查后，后续阶段可以再加入 Python 项目骨架和模型定义，扩展校验器工具，实现求解器，加入端到端检查并运行正式实验。这些工作均不属于本轮范围。
+阶段1A经人工审查后，下一步建议进入 Phase 1B：solver interface and core algorithm planning。求解器实现、`lambda` search、local upgrade、实验和播放器集成仍不属于当前范围。

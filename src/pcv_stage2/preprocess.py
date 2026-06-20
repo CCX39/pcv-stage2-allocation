@@ -15,15 +15,25 @@ class PreprocessError(ValueError):
 
 
 def _rule_applies_to_tile(tile: Tile, rule: LookupRule) -> bool:
-    if rule.view_context != tile.view_context:
-        return False
-    if rule.target_id is not None and rule.target_id != tile.tile_id:
-        return False
-    return rule.distance_match.matches(tile.distance_norm)
+    return rule.view_context == tile.view_context and rule.distance_match.matches(
+        tile.distance_norm
+    )
 
 
 def match_lookup_rule(tile: Tile, lookup: DistanceLookup) -> LookupRule:
     matches = [rule for rule in lookup.rules if _rule_applies_to_tile(tile, rule)]
+    target_aware_matches = [rule for rule in matches if rule.target_id is not None]
+    if target_aware_matches:
+        rule_ids = ", ".join(rule.rule_id for rule in target_aware_matches)
+        target_ids = ", ".join(str(rule.target_id) for rule in target_aware_matches)
+        raise PreprocessError(
+            "Stage2Input v0.1 does not provide the context required for "
+            "target-aware lookup rules. Refusing lookup rule(s) "
+            f"{rule_ids} with target_id value(s) {target_ids}; target_id must "
+            "not be treated as tile_id."
+        )
+
+    matches = [rule for rule in matches if rule.target_id is None]
     if len(matches) != 1:
         raise PreprocessError(
             f"{tile.tile_id} must match exactly one lookup rule in "

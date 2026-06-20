@@ -34,6 +34,7 @@ a72e618  fix: make stage2 input description optional
 3833fdf  tests: add handcheck stage2 fixture set
 7206f17  docs: add current implementation state
 7ec5f22  test: add handcheck fixture validation script
+bf1ef90  feat: add stage2 python model layer
 ```
 
 ## 决策状态
@@ -83,7 +84,11 @@ python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-验证脚本会检查 Schema 草案和 handcheck JSON 文件；pytest 会检查阶段1A模型层、lookup cap 预处理、`B_min_feasible` 和 handcheck 预期值。两者都不是求解器。
+fixture 防线脚本继续保留独立校验路径，用于检查 Schema 草案和 handcheck JSON 文件；pytest 单独检查阶段1A模型层、lookup cap 预处理、`B_min_feasible` 和 handcheck 预期值。两者都不是求解器。
+
+## Target-aware Lookup 边界
+
+`Stage2Input v0.1` 尚未提供 target-aware lookup 所需的上下文。预处理层会拒绝 `target_id` 非空的 lookup rule，不能把 lookup `target_id` 当成 `tile_id` 使用。
 
 ## 手算 Fixture 核心结果
 
@@ -116,6 +121,7 @@ status = INFEASIBLE_BUDGET
 - 批量实验；
 - 图表；
 - 播放器集成。
+- target-aware lookup 输入语义。
 
 ## 下一步建议
 

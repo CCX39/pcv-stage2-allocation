@@ -77,6 +77,10 @@ python scripts/validate_handcheck_fixtures.py
 
 The model layer is preparation for a later solver. It does not implement `lambda` search, local upgrade, baselines, or MCKP solving.
 
+Target-aware lookup is not supported by the current `Stage2Input v0.1` model. Non-null lookup `target_id` values must not be treated as `tile_id` values.
+
+The fixture guardrail script keeps an independent validation path. Model-layer behavior is covered separately by `pytest`.
+
 ## Current Structure
 
 ```text
@@ -160,4 +164,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 0D is reviewed, later phases may add a Python project skeleton and model definitions, broaden validator tooling, implement the solver, add end-to-end checks, and run formal experiments. Those steps are intentionally outside the current scope.
+After Phase 1A is reviewed, the next suggested step is Phase 1B: solver interface and core algorithm planning. Solver implementation, `lambda` search, local upgrade, experiments, and player integration remain outside the current scope.

@@ -34,6 +34,7 @@ a72e618  fix: make stage2 input description optional
 3833fdf  tests: add handcheck stage2 fixture set
 7206f17  docs: add current implementation state
 7ec5f22  test: add handcheck fixture validation script
+bf1ef90  feat: add stage2 python model layer
 ```
 
 ## Decision State
@@ -83,7 +84,11 @@ python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-The validation script checks the draft schemas and handcheck JSON files. The pytest suite checks the Phase 1A model layer, lookup cap preprocessing, `B_min_feasible`, and handcheck expected values. Neither command runs a solver.
+The fixture guardrail script keeps an independent validation path for draft schemas and handcheck JSON files. The pytest suite separately checks the Phase 1A model layer, lookup cap preprocessing, `B_min_feasible`, and handcheck expected values. Neither command runs a solver.
+
+## Target-Aware Lookup Boundary
+
+`Stage2Input v0.1` does not provide the context required for target-aware lookup. Lookup rules with non-null `target_id` are rejected during preprocessing. `target_id` must not be treated as `tile_id`.
 
 ## Handcheck Fixture Core Results
 
@@ -116,6 +121,7 @@ status = INFEASIBLE_BUDGET
 - batch experiments;
 - charts and figures;
 - player integration.
+- target-aware lookup input semantics.
 
 ## Suggested Next Step
 
