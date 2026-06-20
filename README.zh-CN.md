@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段0D：最小 handcheck fixture 校验**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本。这些阶段只建立文档、校验脚手架和可追溯的工程边界，不实现 Stage2 求解器。
+当前仓库处于**阶段1A：Python 模型层与 handcheck 单元测试**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试。这些阶段只建立文档、校验脚手架和模型层边界，不实现 Stage2 求解器。
 
 ## Work1 结构
 
@@ -64,6 +64,19 @@ python scripts/validate_handcheck_fixtures.py
 
 该脚本只是 fixture 防线，不是 Stage2 求解器。
 
+## 阶段1A Python 模型层
+
+阶段1A新增最小 `pcv_stage2` Python 包，用于表达 Stage2 输入模型、距离 lookup 模型、JSON 加载、lookup cap 预处理、效用计算和 `B_min_feasible` 计算。
+
+在仓库根目录运行：
+
+```powershell
+python -m pytest
+python scripts/validate_handcheck_fixtures.py
+```
+
+模型层只是后续求解器的准备，不实现 `lambda` search、local upgrade、baseline 或 MCKP 求解。
+
 ## 当前目录结构
 
 ```text
@@ -90,6 +103,7 @@ pcv-stage2-allocation/
 │  └─ lookups/
 │     └─ .gitkeep
 ├─ tests/
+│  ├─ test_models_handcheck.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -101,6 +115,11 @@ pcv-stage2-allocation/
 │     │  └─ hand_calculation.zh-CN.md
 │     └─ .gitkeep
 ├─ src/
+│  ├─ pcv_stage2/
+│  │  ├─ __init__.py
+│  │  ├─ models.py
+│  │  ├─ preprocess.py
+│  │  └─ io.py
 │  └─ .gitkeep
 ├─ scripts/
 │  └─ validate_handcheck_fixtures.py

@@ -1,6 +1,6 @@
 # 当前实现状态
 
-本文是 `pcv-stage2-allocation` 的阶段0D接手说明，用来记录截至阶段0D的实现状态，方便新的对话或人工审查者快速继续工作。
+本文是 `pcv-stage2-allocation` 的阶段1A接手说明，用来记录截至阶段1A的实现状态，方便新的对话或人工审查者快速继续工作。
 
 ## 项目当前目标
 
@@ -13,13 +13,13 @@
 当前已完成到：
 
 ```text
-Phase 0D: minimal schema/fixture validation script completed
+Phase 1A: Python project skeleton + dataclass/model definitions completed
 ```
 
 下一步建议进入：
 
 ```text
-Phase 1A preparation: Python project skeleton + dataclass/model definitions
+Phase 1B preparation: solver interface and core algorithm planning
 ```
 
 目前尚未实现 Stage2 求解器、通用 validator、实验运行器或播放器集成。
@@ -32,6 +32,8 @@ Phase 1A preparation: Python project skeleton + dataclass/model definitions
 e0844ee  schemas: add stage2 MVP JSON schema drafts
 a72e618  fix: make stage2 input description optional
 3833fdf  tests: add handcheck stage2 fixture set
+7206f17  docs: add current implementation state
+7ec5f22  test: add handcheck fixture validation script
 ```
 
 ## 决策状态
@@ -55,6 +57,8 @@ D0-4 provenance vocabulary  DRAFT
 - `schemas/stage2_result.schema.json`
 - `tests/fixtures/handcheck_3x3/`
 - `scripts/validate_handcheck_fixtures.py`
+- `src/pcv_stage2/`
+- `tests/test_models_handcheck.py`
 - `requirements.txt`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
@@ -75,10 +79,11 @@ D0-4 provenance vocabulary  DRAFT
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-脚本会校验 Schema 草案本身、校验 handcheck JSON 文件是否符合 Schema、重新计算 lookup cap 解析、重新计算 `B_min_feasible`，并核对 success 和 infeasible 的预期结果。它不是求解器。
+验证脚本会检查 Schema 草案和 handcheck JSON 文件；pytest 会检查阶段1A模型层、lookup cap 预处理、`B_min_feasible` 和 handcheck 预期值。两者都不是求解器。
 
 ## 手算 Fixture 核心结果
 
@@ -114,10 +119,10 @@ status = INFEASIBLE_BUDGET
 
 ## 下一步建议
 
-下一步不建议直接写完整 solver。更稳妥的选择是先做：
+下一步不建议在未审查模型层前直接写完整 solver。较稳妥的选择是：
 
 ```text
-Phase 1A: Python project skeleton + dataclass/model definitions
+Phase 1B: solver interface and core algorithm planning
 ```
 
 这里只记录建议，不自动进入下一阶段。
@@ -130,6 +135,6 @@ Phase 1A: Python project skeleton + dataclass/model definitions
 2. 再读 `docs/stage2_mvp_contract.zh-CN.md`。
 3. 再读 `docs/schema_contract.zh-CN.md`。
 4. 再看 `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`。
-5. 安装依赖后运行 `python scripts/validate_handcheck_fixtures.py`。
+5. 安装依赖后运行 `python -m pytest` 和 `python scripts/validate_handcheck_fixtures.py`。
 6. 当前不要修改 D0-1、D0-2、D0-3 的冻结语义。
 7. 不要把 `handcheck_3x3` fixture 当成真实 Longdress 实验。

@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 0D: minimal handcheck fixture validation**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D adds a minimal schema and handcheck validation script. These phases create documentation, validation scaffolding, and traceable engineering boundaries only. They do not implement the Stage2 solver.
+This repository is currently at **Phase 1A: Python model layer and handcheck unit tests**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests. These phases create documentation, validation scaffolding, and model-layer boundaries only. They do not implement the Stage2 solver.
 
 ## Work1 Structure
 
@@ -64,6 +64,19 @@ python scripts/validate_handcheck_fixtures.py
 
 This script is a fixture guardrail, not a Stage2 solver.
 
+## Phase 1A Python Model Layer
+
+Phase 1A adds a minimal `pcv_stage2` Python package for Stage2 input models, distance lookup models, JSON loading, lookup cap preprocessing, utility calculation, and `B_min_feasible` calculation.
+
+Run from the repository root:
+
+```powershell
+python -m pytest
+python scripts/validate_handcheck_fixtures.py
+```
+
+The model layer is preparation for a later solver. It does not implement `lambda` search, local upgrade, baselines, or MCKP solving.
+
 ## Current Structure
 
 ```text
@@ -90,6 +103,7 @@ pcv-stage2-allocation/
 │  └─ lookups/
 │     └─ .gitkeep
 ├─ tests/
+│  ├─ test_models_handcheck.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -101,6 +115,11 @@ pcv-stage2-allocation/
 │     │  └─ hand_calculation.zh-CN.md
 │     └─ .gitkeep
 ├─ src/
+│  ├─ pcv_stage2/
+│  │  ├─ __init__.py
+│  │  ├─ models.py
+│  │  ├─ preprocess.py
+│  │  └─ io.py
 │  └─ .gitkeep
 ├─ scripts/
 │  └─ validate_handcheck_fixtures.py

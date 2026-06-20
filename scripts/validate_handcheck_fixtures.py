@@ -6,6 +6,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 try:
     from jsonschema import Draft202012Validator
     from jsonschema.exceptions import SchemaError, ValidationError
@@ -16,8 +21,16 @@ except ImportError as exc:  # pragma: no cover - exercised only when deps are mi
     )
     raise SystemExit(2) from exc
 
+from pcv_stage2.io import load_distance_lookup, load_stage2_input
+from pcv_stage2.models import LookupResolution, Stage2Input
+from pcv_stage2.preprocess import (
+    compute_b_min_feasible,
+    compute_net_utility,
+    compute_spatial_utility,
+    resolve_lookup_for_input,
+)
 
-ROOT = Path(__file__).resolve().parents[1]
+
 SCHEMAS = ROOT / "schemas"
 FIXTURE = ROOT / "tests" / "fixtures" / "handcheck_3x3"
 EPSILON = 1e-9
@@ -86,123 +99,41 @@ def validate_schema(schema: dict[str, Any], path: Path) -> None:
         ) from exc
 
 
-def level_map(tile: dict[str, Any]) -> dict[int, dict[str, Any]]:
-    levels = {level["level_id"]: level for level in tile["levels"]}
-    if len(levels) != len(tile["levels"]):
-        fail(f"{tile['tile_id']} has duplicate level_id values")
-
-    expected_ids = list(range(1, max(levels) + 1))
-    actual_ids = sorted(levels)
-    if actual_ids != expected_ids:
-        fail(
-            f"{tile['tile_id']} level_id values must be contiguous from 1: "
-            f"expected {expected_ids}, got {actual_ids}"
-        )
-    return levels
-
-
-def rule_matches(tile: dict[str, Any], rule: dict[str, Any]) -> bool:
-    if rule["view_context"] != tile["view_context"]:
-        return False
-
-    match = rule["distance_match"]
-    distance = tile["distance_norm"]
-
-    if "exact_distance" in match:
-        return math.isclose(distance, match["exact_distance"], rel_tol=EPSILON, abs_tol=EPSILON)
-
-    return match["distance_min"] <= distance <= match["distance_max"]
-
-
-def matched_lookup_rule(tile: dict[str, Any], lookup: dict[str, Any]) -> dict[str, Any]:
-    matches = [rule for rule in lookup["rules"] if rule_matches(tile, rule)]
-    if len(matches) != 1:
-        fail(f"{tile['tile_id']} must match exactly one lookup rule, got {len(matches)}")
-    return matches[0]
-
-
-def allowed_levels_for(tile: dict[str, Any], rule: dict[str, Any]) -> list[int]:
-    levels = level_map(tile)
-    lookup_level = rule["lookup_level"]
-    max_level = max(levels)
-
-    if lookup_level < 1:
-        fail(f"{tile['tile_id']} lookup_level must be positive, got {lookup_level}")
-
-    # D0-1 cap semantics: lookup_level is an upper bound, not a fixed choice or floor.
-    # If a near-field profile uses lookup_level above the available max, all existing
-    # levels remain candidates.
-    return [level_id for level_id in sorted(levels) if level_id <= min(lookup_level, max_level)]
-
-
-def compute_lookup_resolution(
-    data: dict[str, Any], lookup: dict[str, Any]
-) -> list[dict[str, Any]]:
-    expect_equal(lookup["semantics"], "cap", "lookup semantics")
-
-    resolutions = []
-    for tile in data["tiles"]:
-        rule = matched_lookup_rule(tile, lookup)
-        allowed_levels = allowed_levels_for(tile, rule)
-        if not allowed_levels:
-            fail(f"{tile['tile_id']} has no allowed levels after lookup cap")
-        resolutions.append(
-            {
-                "tile_id": tile["tile_id"],
-                "lookup_profile_id": lookup["lookup_profile_id"],
-                "matched_rule_id": rule["rule_id"],
-                "lookup_level": rule["lookup_level"],
-                "allowed_levels": allowed_levels,
-            }
-        )
-    return resolutions
+def resolution_to_dict(resolution: LookupResolution) -> dict[str, Any]:
+    return {
+        "tile_id": resolution.tile_id,
+        "lookup_profile_id": resolution.lookup_profile_id,
+        "matched_rule_id": resolution.matched_rule_id,
+        "lookup_level": resolution.lookup_level,
+        "allowed_levels": list(resolution.allowed_levels),
+    }
 
 
 def expect_lookup_resolution(
-    expected_result: dict[str, Any], computed: list[dict[str, Any]], label: str
+    expected_result: dict[str, Any], computed: tuple[LookupResolution, ...], label: str
 ) -> None:
     actual = sorted(expected_result["lookup_resolution"], key=lambda item: item["tile_id"])
-    wanted = sorted(computed, key=lambda item: item["tile_id"])
+    wanted = sorted(
+        (resolution_to_dict(resolution) for resolution in computed),
+        key=lambda item: item["tile_id"],
+    )
     expect_equal(actual, wanted, f"{label} lookup_resolution")
 
 
-def compute_b_min_feasible(data: dict[str, Any], lookup: dict[str, Any]) -> float:
-    total = 0.0
-    for tile in data["tiles"]:
-        rule = matched_lookup_rule(tile, lookup)
-        allowed_levels = allowed_levels_for(tile, rule)
-        levels = level_map(tile)
-        total += min(levels[level_id]["r_bytes"] for level_id in allowed_levels)
-    return total
-
-
-def spatial_utility(tile: dict[str, Any], level: dict[str, Any], g_distance: float = 1.0) -> float:
-    return (
-        tile["p_sal"]
-        * tile["visibility"]
-        * tile["screen_area"]
-        * g_distance
-        * level["q_base"]
-    )
-
-
-def net_utility(tile: dict[str, Any], level: dict[str, Any], eta: float) -> float:
-    return spatial_utility(tile, level) - eta * level["d_ms"]
-
-
 def expect_success_result(
-    input_data: dict[str, Any],
-    lookup: dict[str, Any],
+    stage2_input: Stage2Input,
+    lookup_path: Path,
     expected_result: dict[str, Any],
 ) -> None:
+    lookup = load_distance_lookup(lookup_path)
     expect_equal(expected_result["status"], "SUCCESS", "success status")
-    expect_equal(input_data["budget_total_bytes"], 210, "success input budget_total_bytes")
+    expect_equal(stage2_input.budget_total_bytes, 210.0, "success input budget_total_bytes")
     expect_equal(expected_result["budget_total_bytes"], 210, "success result budget_total_bytes")
 
-    computed_lookup = compute_lookup_resolution(input_data, lookup)
+    computed_lookup = resolve_lookup_for_input(stage2_input, lookup)
     expect_lookup_resolution(expected_result, computed_lookup, "success")
 
-    b_min = compute_b_min_feasible(input_data, lookup)
+    b_min = compute_b_min_feasible(stage2_input, lookup)
     expect_close(b_min, 120, "success computed B_min_feasible")
     expect_close(expected_result["b_min_feasible"], b_min, "success result b_min_feasible")
     expect_close(expected_result["budget_gap"], 0, "success budget_gap")
@@ -218,67 +149,76 @@ def expect_success_result(
     }
     expect_equal(actual_selection, expected_selection, "success selected levels")
 
-    tiles = {tile["tile_id"]: tile for tile in input_data["tiles"]}
     computed_allowed = {
-        item["tile_id"]: item["allowed_levels"] for item in computed_lookup
+        resolution.tile_id: list(resolution.allowed_levels)
+        for resolution in computed_lookup
     }
-
     total_bytes = 0.0
     total_net = 0.0
     total_spatial = 0.0
     total_decode = 0.0
 
     for selected in expected_result["selected_tiles"]:
-        tile = tiles[selected["tile_id"]]
-        levels = level_map(tile)
+        tile = stage2_input.tile_by_id(selected["tile_id"])
         level_id = selected["selected_level_id"]
-        if level_id not in computed_allowed[tile["tile_id"]]:
-            fail(f"{tile['tile_id']} selected level {level_id} is outside allowed_levels")
+        if level_id not in computed_allowed[tile.tile_id]:
+            fail(f"{tile.tile_id} selected level {level_id} is outside allowed_levels")
 
-        level = levels[level_id]
-        selected_spatial = spatial_utility(tile, level)
-        selected_net = net_utility(tile, level, input_data["eta"])
+        level = tile.level_by_id(level_id)
+        selected_spatial = compute_spatial_utility(tile, level)
+        selected_net = compute_net_utility(tile, level, stage2_input.eta)
 
-        expect_equal(selected["r_bytes"], level["r_bytes"], f"{tile['tile_id']} r_bytes")
-        expect_equal(selected["d_ms"], level["d_ms"], f"{tile['tile_id']} d_ms")
-        expect_close(selected["spatial_utility"], selected_spatial, f"{tile['tile_id']} spatial_utility")
-        expect_close(selected["net_utility"], selected_net, f"{tile['tile_id']} net_utility")
-        expect_equal(selected["allowed_levels"], computed_allowed[tile["tile_id"]], f"{tile['tile_id']} allowed_levels")
+        expect_close(selected["r_bytes"], level.r_bytes, f"{tile.tile_id} r_bytes")
+        expect_close(selected["d_ms"], level.d_ms, f"{tile.tile_id} d_ms")
+        expect_close(
+            selected["spatial_utility"], selected_spatial, f"{tile.tile_id} spatial_utility"
+        )
+        expect_close(selected["net_utility"], selected_net, f"{tile.tile_id} net_utility")
+        expect_equal(
+            selected["allowed_levels"],
+            computed_allowed[tile.tile_id],
+            f"{tile.tile_id} allowed_levels",
+        )
 
-        total_bytes += level["r_bytes"]
+        total_bytes += level.r_bytes
         total_net += selected_net
         total_spatial += selected_spatial
-        total_decode += level["d_ms"]
+        total_decode += level.d_ms
 
     expect_close(total_bytes, 200, "success computed total_bytes")
     expect_close(total_net, 39.5, "success computed total_net_utility")
     expect_close(expected_result["total_bytes"], total_bytes, "success result total_bytes")
     expect_close(expected_result["total_net_utility"], total_net, "success result total_net_utility")
-    expect_close(expected_result["total_spatial_utility"], total_spatial, "success result total_spatial_utility")
+    expect_close(
+        expected_result["total_spatial_utility"],
+        total_spatial,
+        "success result total_spatial_utility",
+    )
     expect_close(expected_result["total_decode_ms"], total_decode, "success result total_decode_ms")
     expect_close(
         expected_result["budget_utilization"],
-        total_bytes / input_data["budget_total_bytes"],
+        total_bytes / stage2_input.budget_total_bytes,
         "success budget_utilization",
     )
     expect_equal(expected_result["lambda_search"]["enabled"], False, "success lambda_search.enabled")
 
 
 def expect_infeasible_result(
-    input_data: dict[str, Any],
-    lookup: dict[str, Any],
+    stage2_input: Stage2Input,
+    lookup_path: Path,
     expected_result: dict[str, Any],
 ) -> None:
+    lookup = load_distance_lookup(lookup_path)
     expect_equal(expected_result["status"], "INFEASIBLE_BUDGET", "infeasible status")
-    expect_equal(input_data["budget_total_bytes"], 100, "infeasible input budget_total_bytes")
+    expect_equal(stage2_input.budget_total_bytes, 100.0, "infeasible input budget_total_bytes")
     expect_equal(expected_result["budget_total_bytes"], 100, "infeasible result budget_total_bytes")
     expect_equal(expected_result["selected_tiles"], [], "infeasible selected_tiles")
 
-    computed_lookup = compute_lookup_resolution(input_data, lookup)
+    computed_lookup = resolve_lookup_for_input(stage2_input, lookup)
     expect_lookup_resolution(expected_result, computed_lookup, "infeasible")
 
-    b_min = compute_b_min_feasible(input_data, lookup)
-    gap = b_min - input_data["budget_total_bytes"]
+    b_min = compute_b_min_feasible(stage2_input, lookup)
+    gap = b_min - stage2_input.budget_total_bytes
     if gap <= 0:
         fail("infeasible input must have budget_total_bytes below computed B_min_feasible")
 
@@ -332,30 +272,25 @@ def main() -> int:
     )
     print("[OK] fixture JSON files are schema-valid")
 
-    success_lookup = compute_lookup_resolution(
-        fixtures["input_success"], fixtures["distance_lookup"]
-    )
-    infeasible_lookup = compute_lookup_resolution(
-        fixtures["input_infeasible"], fixtures["distance_lookup"]
-    )
-    expect_lookup_resolution(
-        fixtures["expected_success_result"], success_lookup, "success"
-    )
-    expect_lookup_resolution(
-        fixtures["expected_infeasible_result"], infeasible_lookup, "infeasible"
-    )
+    success_input = load_stage2_input(fixture_paths["input_success"])
+    infeasible_input = load_stage2_input(fixture_paths["input_infeasible"])
+    lookup = load_distance_lookup(fixture_paths["distance_lookup"])
+    success_lookup = resolve_lookup_for_input(success_input, lookup)
+    infeasible_lookup = resolve_lookup_for_input(infeasible_input, lookup)
+    expect_lookup_resolution(fixtures["expected_success_result"], success_lookup, "success")
+    expect_lookup_resolution(fixtures["expected_infeasible_result"], infeasible_lookup, "infeasible")
     print("[OK] lookup cap resolution matches hand calculation")
 
     expect_success_result(
-        fixtures["input_success"],
-        fixtures["distance_lookup"],
+        success_input,
+        fixture_paths["distance_lookup"],
         fixtures["expected_success_result"],
     )
     print("[OK] success expected result matches hand calculation")
 
     expect_infeasible_result(
-        fixtures["input_infeasible"],
-        fixtures["distance_lookup"],
+        infeasible_input,
+        fixture_paths["distance_lookup"],
         fixtures["expected_infeasible_result"],
     )
     print("[OK] infeasible expected result matches hand calculation")

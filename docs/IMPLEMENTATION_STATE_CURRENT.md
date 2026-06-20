@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 0D handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 0D so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 1A handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1A so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,13 +13,13 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 0D: minimal schema/fixture validation script completed
+Phase 1A: Python project skeleton + dataclass/model definitions completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 1A preparation: Python project skeleton + dataclass/model definitions
+Phase 1B preparation: solver interface and core algorithm planning
 ```
 
 No Stage2 solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
@@ -32,6 +32,8 @@ No Stage2 solver, general-purpose validator, experiment runner, or player integr
 e0844ee  schemas: add stage2 MVP JSON schema drafts
 a72e618  fix: make stage2 input description optional
 3833fdf  tests: add handcheck stage2 fixture set
+7206f17  docs: add current implementation state
+7ec5f22  test: add handcheck fixture validation script
 ```
 
 ## Decision State
@@ -55,6 +57,8 @@ D0-4 provenance vocabulary  DRAFT
 - `schemas/stage2_result.schema.json`
 - `tests/fixtures/handcheck_3x3/`
 - `scripts/validate_handcheck_fixtures.py`
+- `src/pcv_stage2/`
+- `tests/test_models_handcheck.py`
 - `requirements.txt`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
@@ -75,10 +79,11 @@ Run from the repository root:
 
 ```powershell
 python -m pip install -r requirements.txt
+python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-The script validates the draft schemas, validates the handcheck JSON files against those schemas, recomputes lookup cap resolution, recomputes `B_min_feasible`, and checks the expected success and infeasible results. It is not a solver.
+The validation script checks the draft schemas and handcheck JSON files. The pytest suite checks the Phase 1A model layer, lookup cap preprocessing, `B_min_feasible`, and handcheck expected values. Neither command runs a solver.
 
 ## Handcheck Fixture Core Results
 
@@ -114,10 +119,10 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into a full solver. Prefer this smaller next step:
+Do not jump directly into a full solver without reviewing the model layer first. A reasonable next step is:
 
 ```text
-Phase 1A: Python project skeleton + dataclass/model definitions
+Phase 1B: solver interface and core algorithm planning
 ```
 
 This document only records suggestions. It does not start either phase.
@@ -130,6 +135,6 @@ For a new GPT conversation or human handoff:
 2. Then read `docs/stage2_mvp_contract.zh-CN.md`.
 3. Then read `docs/schema_contract.zh-CN.md`.
 4. Then inspect `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`.
-5. Run `python scripts/validate_handcheck_fixtures.py` after installing requirements.
+5. Run `python -m pytest` and `python scripts/validate_handcheck_fixtures.py` after installing requirements.
 6. Do not change the frozen semantics of D0-1, D0-2, or D0-3.
 7. Do not treat the `handcheck_3x3` fixture as a real Longdress experiment.
