@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import math
+
 from .models import (
     DistanceLookup,
+    FixedLambdaSelection,
+    FixedLambdaTileSelection,
     LookupResolution,
     LookupRule,
     QualityLevel,
@@ -104,3 +108,100 @@ def compute_b_min_feasible(stage2_input: Stage2Input, lookup: DistanceLookup) ->
         ]
         total += min(candidate_sizes)
     return total
+
+
+def _require_finite_non_negative(value: float, name: str) -> None:
+    if not math.isfinite(value) or value < 0:
+        raise PreprocessError(f"{name} must be finite and non-negative, got {value!r}")
+
+
+def _is_better_fixed_lambda_candidate(
+    *,
+    candidate_level: QualityLevel,
+    candidate_score: float,
+    best_level: QualityLevel,
+    best_score: float,
+    score_epsilon: float,
+) -> bool:
+    if candidate_score > best_score + score_epsilon:
+        return True
+    if best_score > candidate_score + score_epsilon:
+        return False
+
+    # D0-3 fixed-lambda tie order: score, smaller bytes, smaller decode time,
+    # then smaller level_id.
+    return (
+        candidate_level.r_bytes,
+        candidate_level.d_ms,
+        candidate_level.level_id,
+    ) < (
+        best_level.r_bytes,
+        best_level.d_ms,
+        best_level.level_id,
+    )
+
+
+def select_fixed_lambda(
+    stage2_input: Stage2Input,
+    lookup: DistanceLookup,
+    lambda_value: float,
+    *,
+    score_epsilon: float = 1e-9,
+) -> FixedLambdaSelection:
+    _require_finite_non_negative(lambda_value, "lambda_value")
+    _require_finite_non_negative(score_epsilon, "score_epsilon")
+
+    tile_selections: list[FixedLambdaTileSelection] = []
+    total_bytes = 0.0
+    total_net_utility = 0.0
+    total_penalized_score = 0.0
+    resolutions = resolve_lookup_for_input(stage2_input, lookup)
+
+    for tile, resolution in zip(stage2_input.tiles, resolutions, strict=True):
+        best_level: QualityLevel | None = None
+        best_net_utility = 0.0
+        best_penalized_score = 0.0
+
+        for level_id in resolution.allowed_levels:
+            level = tile.level_by_id(level_id)
+            net_utility = compute_net_utility(tile, level, stage2_input.eta)
+            penalized_score = net_utility - lambda_value * level.r_bytes
+
+            if best_level is None or _is_better_fixed_lambda_candidate(
+                candidate_level=level,
+                candidate_score=penalized_score,
+                best_level=best_level,
+                best_score=best_penalized_score,
+                score_epsilon=score_epsilon,
+            ):
+                best_level = level
+                best_net_utility = net_utility
+                best_penalized_score = penalized_score
+
+        assert best_level is not None
+
+        tile_selections.append(
+            FixedLambdaTileSelection(
+                lambda_value=lambda_value,
+                tile_id=tile.tile_id,
+                allowed_level_ids=resolution.allowed_levels,
+                selected_level_id=best_level.level_id,
+                selected_r_bytes=best_level.r_bytes,
+                selected_d_ms=best_level.d_ms,
+                selected_net_utility=best_net_utility,
+                selected_penalized_score=best_penalized_score,
+            )
+        )
+        total_bytes += best_level.r_bytes
+        total_net_utility += best_net_utility
+        total_penalized_score += best_penalized_score
+
+    return FixedLambdaSelection(
+        lambda_value=lambda_value,
+        tile_selections=tuple(tile_selections),
+        total_bytes=total_bytes,
+        total_net_utility=total_net_utility,
+        total_penalized_score=total_penalized_score,
+        budget_total_bytes=stage2_input.budget_total_bytes,
+        is_budget_feasible=total_bytes <= stage2_input.budget_total_bytes,
+    )

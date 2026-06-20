@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -20,6 +21,7 @@ from pcv_stage2.preprocess import (
     match_lookup_rule,
     resolve_allowed_levels,
     resolve_lookup_for_input,
+    select_fixed_lambda,
 )
 
 
@@ -28,6 +30,10 @@ FIXTURE = ROOT / "tests" / "fixtures" / "handcheck_3x3"
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def fixed_lambda_selection_map(result):
+    return {selection.tile_id: selection for selection in result.tile_selections}
 
 
 def test_success_handcheck_lookup_and_expected_selection() -> None:
@@ -70,6 +76,79 @@ def test_success_handcheck_lookup_and_expected_selection() -> None:
     assert expected_result["total_net_utility"] == pytest.approx(total_net_utility)
     assert expected_result["status"] == "SUCCESS"
     assert expected_result["budget_total_bytes"] == pytest.approx(210)
+
+
+def test_fixed_lambda_zero_selects_max_net_utility_per_allowed_tile() -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    result = select_fixed_lambda(stage2_input, lookup, lambda_value=0.0)
+    selected = fixed_lambda_selection_map(result)
+
+    assert {tile_id: item.selected_level_id for tile_id, item in selected.items()} == {
+        "T1_near_important": 3,
+        "T2_mid_visible": 2,
+        "T3_far_capped": 1,
+    }
+    assert list(selected["T3_far_capped"].allowed_level_ids) == [1]
+    assert result.total_bytes == pytest.approx(240)
+    assert result.total_net_utility == pytest.approx(45.4)
+    assert result.total_penalized_score == pytest.approx(45.4)
+    assert result.budget_total_bytes == pytest.approx(210)
+    assert result.is_budget_feasible is False
+
+
+def test_fixed_lambda_nonzero_penalty_changes_handcheck_selection() -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    # For T2, score(L2) - score(L1) = 5.9 - 40 * lambda.
+    # lambda = 0.2 is above the 0.1475 crossover, so T2 changes from L2 to L1.
+    result = select_fixed_lambda(stage2_input, lookup, lambda_value=0.2)
+    selected = fixed_lambda_selection_map(result)
+
+    assert {tile_id: item.selected_level_id for tile_id, item in selected.items()} == {
+        "T1_near_important": 3,
+        "T2_mid_visible": 1,
+        "T3_far_capped": 1,
+    }
+    assert result.total_bytes == pytest.approx(200)
+    assert result.total_net_utility == pytest.approx(39.5)
+    assert result.total_penalized_score == pytest.approx(-0.5)
+    assert result.is_budget_feasible is True
+
+
+def test_fixed_lambda_tie_break_prefers_smaller_bytes() -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    # T1 L1/L2/L3 all have the same penalized score at lambda = 9.9 / 40.
+    result = select_fixed_lambda(stage2_input, lookup, lambda_value=0.2475)
+    selected = fixed_lambda_selection_map(result)
+
+    assert selected["T1_near_important"].selected_level_id == 1
+    assert selected["T1_near_important"].selected_penalized_score == pytest.approx(
+        -2.475
+    )
+
+
+def test_fixed_lambda_repeated_calls_are_deterministic() -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    first = select_fixed_lambda(stage2_input, lookup, lambda_value=0.2)
+    second = select_fixed_lambda(stage2_input, lookup, lambda_value=0.2)
+
+    assert first == second
+
+
+@pytest.mark.parametrize("lambda_value", [-0.1, math.nan, math.inf, -math.inf])
+def test_fixed_lambda_rejects_invalid_lambda_values(lambda_value: float) -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    with pytest.raises(PreprocessError, match="lambda_value must be finite"):
+        select_fixed_lambda(stage2_input, lookup, lambda_value=lambda_value)
 
 
 def test_infeasible_handcheck_budget_gap() -> None:
@@ -153,3 +232,6 @@ def test_target_aware_lookup_rule_is_rejected(target_id: str) -> None:
 
     with pytest.raises(PreprocessError, match="Stage2Input v0.1.*target_id.*tile_id"):
         match_lookup_rule(tile, lookup)
+
+    with pytest.raises(PreprocessError, match="Stage2Input v0.1.*target_id.*tile_id"):
+        select_fixed_lambda(stage2_input, lookup, lambda_value=0.0)

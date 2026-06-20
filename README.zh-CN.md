@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段1A：Python 模型层与 handcheck 单元测试**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试。这些阶段只建立文档、校验脚手架和模型层边界，不实现 Stage2 求解器。
+当前仓库处于**阶段1B：固定 lambda 选档内核**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核。这些阶段只建立文档、校验脚手架和模型层边界，不实现完整 Stage2 求解器。
 
 ## Work1 结构
 
@@ -81,6 +81,18 @@ python scripts/validate_handcheck_fixtures.py
 
 fixture 防线脚本继续保留独立校验路径；模型层行为由 `pytest` 单独覆盖。
 
+## 阶段1B固定 Lambda 选档内核
+
+阶段1B新增 `select_fixed_lambda(...)`，用于在固定 `lambda` 下为每个分块从允许候选中选择一个档位，目标为：
+
+```text
+net_utility_i,j - lambda_value * r_bytes_i,j
+```
+
+该结果只是 fixed-lambda candidate，不是最终 Stage2 result。它记录总数据量、原始净效用、惩罚后得分，以及当前 candidate 是否满足输入预算。预算可行不能被解释为正式 `SUCCESS`，超预算也不能被解释为正式 `INFEASIBLE_BUDGET`。
+
+本阶段仍未实现 `lambda` 上界扩展、二分搜索、最佳可行解记录、local upgrade、baseline 或最终求解器组装。
+
 ## 当前目录结构
 
 ```text
@@ -97,7 +109,9 @@ pcv-stage2-allocation/
 │  ├─ manual_review_checklist.md
 │  ├─ manual_review_checklist.zh-CN.md
 │  ├─ schema_contract.md
-│  └─ schema_contract.zh-CN.md
+│  ├─ schema_contract.zh-CN.md
+│  ├─ fixed_lambda_selection_contract.md
+│  └─ fixed_lambda_selection_contract.zh-CN.md
 ├─ schemas/
 │  ├─ stage2_input.schema.json
 │  ├─ distance_lookup.schema.json
@@ -138,6 +152,7 @@ pcv-stage2-allocation/
 ## 当前已有文档
 
 - [当前实现状态](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)：当前阶段、决策状态、已有资产和下一步建议的快速接手说明。
+- [固定 Lambda 选档契约](docs/fixed_lambda_selection_contract.zh-CN.md)：固定 `lambda` candidate 规则、平局处理和求解器边界。
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
 - [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
 - [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
@@ -164,4 +179,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段1A经人工审查后，下一步建议进入 Phase 1B：solver interface and core algorithm planning。求解器实现、`lambda` search、local upgrade、实验和播放器集成仍不属于当前范围。
+阶段1B经人工审查后，下一步建议规划 `lambda` search 接口和最终求解器组装边界。`lambda` 上界扩展、二分搜索、local upgrade、实验和播放器集成仍不属于当前范围。

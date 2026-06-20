@@ -3,6 +3,8 @@
 from .io import load_distance_lookup, load_stage2_input
 from .models import (
     DistanceLookup,
+    FixedLambdaSelection,
+    FixedLambdaTileSelection,
     LookupDistanceMatch,
     LookupQualityLevel,
     LookupResolution,
@@ -18,10 +20,13 @@ from .preprocess import (
     match_lookup_rule,
     resolve_allowed_levels,
     resolve_lookup_for_input,
+    select_fixed_lambda,
 )
 
 __all__ = [
     "DistanceLookup",
+    "FixedLambdaSelection",
+    "FixedLambdaTileSelection",
     "LookupDistanceMatch",
     "LookupQualityLevel",
     "LookupResolution",
@@ -37,4 +42,5 @@ __all__ = [
     "match_lookup_rule",
     "resolve_allowed_levels",
     "resolve_lookup_for_input",
+    "select_fixed_lambda",
 ]

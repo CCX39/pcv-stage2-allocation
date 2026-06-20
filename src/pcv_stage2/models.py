@@ -174,3 +174,41 @@ class LookupResolution:
         object.__setattr__(self, "allowed_levels", _as_tuple(self.allowed_levels))
         if not self.allowed_levels:
             raise ValueError(f"{self.tile_id} has no allowed levels")
+
+
+@dataclass(frozen=True)
+class FixedLambdaTileSelection:
+    lambda_value: float
+    tile_id: str
+    allowed_level_ids: tuple[int, ...]
+    selected_level_id: int
+    selected_r_bytes: float
+    selected_d_ms: float
+    selected_net_utility: float
+    selected_penalized_score: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "allowed_level_ids", _as_tuple(self.allowed_level_ids))
+        if not self.allowed_level_ids:
+            raise ValueError(f"{self.tile_id} has no allowed levels")
+        if self.selected_level_id not in self.allowed_level_ids:
+            raise ValueError(
+                f"{self.tile_id} selected level {self.selected_level_id} "
+                "is outside allowed_level_ids"
+            )
+
+
+@dataclass(frozen=True)
+class FixedLambdaSelection:
+    lambda_value: float
+    tile_selections: tuple[FixedLambdaTileSelection, ...]
+    total_bytes: float
+    total_net_utility: float
+    total_penalized_score: float
+    budget_total_bytes: float
+    is_budget_feasible: bool
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tile_selections", _as_tuple(self.tile_selections))
+        if not self.tile_selections:
+            raise ValueError("fixed-lambda selection must contain at least one tile")
