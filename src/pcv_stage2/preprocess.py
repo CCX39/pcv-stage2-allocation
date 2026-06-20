@@ -6,6 +6,10 @@ from .models import (
     DistanceLookup,
     FixedLambdaSelection,
     FixedLambdaTileSelection,
+    LambdaBracketConfig,
+    LambdaBracketResult,
+    LambdaSelectedLevel,
+    LambdaTracePoint,
     LookupResolution,
     LookupRule,
     QualityLevel,
@@ -204,4 +208,93 @@ def select_fixed_lambda(
         total_penalized_score=total_penalized_score,
         budget_total_bytes=stage2_input.budget_total_bytes,
         is_budget_feasible=total_bytes <= stage2_input.budget_total_bytes,
+    )
+
+
+def _trace_point_from_fixed_lambda(
+    step_index: int,
+    candidate: FixedLambdaSelection,
+) -> LambdaTracePoint:
+    return LambdaTracePoint(
+        step_index=step_index,
+        lambda_value=candidate.lambda_value,
+        total_bytes=candidate.total_bytes,
+        total_net_utility=candidate.total_net_utility,
+        total_decode_ms=sum(
+            selection.selected_d_ms for selection in candidate.tile_selections
+        ),
+        is_budget_feasible=candidate.is_budget_feasible,
+        selected_levels=tuple(
+            LambdaSelectedLevel(
+                tile_id=selection.tile_id,
+                selected_level_id=selection.selected_level_id,
+            )
+            for selection in candidate.tile_selections
+        ),
+    )
+
+
+def bracket_lambda_for_feasible_candidate(
+    stage2_input: Stage2Input,
+    lookup: DistanceLookup,
+    config: LambdaBracketConfig,
+) -> LambdaBracketResult:
+    b_min_feasible = compute_b_min_feasible(stage2_input, lookup)
+    if stage2_input.budget_total_bytes < b_min_feasible:
+        raise PreprocessError(
+            "lambda bracketing requires a budget-feasible input; the final "
+            "solve_stage2 layer must map this condition to INFEASIBLE_BUDGET."
+        )
+
+    trace: list[LambdaTracePoint] = []
+    zero_candidate = select_fixed_lambda(
+        stage2_input,
+        lookup,
+        lambda_value=0.0,
+        score_epsilon=config.score_epsilon,
+    )
+    trace.append(_trace_point_from_fixed_lambda(0, zero_candidate))
+
+    if zero_candidate.is_budget_feasible:
+        return LambdaBracketResult(
+            bracket_found=True,
+            feasible_at_zero=True,
+            lower_infeasible_lambda=None,
+            upper_feasible_lambda=0.0,
+            feasible_candidate=zero_candidate,
+            trace=tuple(trace),
+        )
+
+    lower_infeasible_lambda = 0.0
+    lambda_value = config.lambda_initial_high
+
+    for _ in range(config.lambda_max_bracket_steps):
+        candidate = select_fixed_lambda(
+            stage2_input,
+            lookup,
+            lambda_value=lambda_value,
+            score_epsilon=config.score_epsilon,
+        )
+        trace.append(_trace_point_from_fixed_lambda(len(trace), candidate))
+
+        if candidate.is_budget_feasible:
+            return LambdaBracketResult(
+                bracket_found=True,
+                feasible_at_zero=False,
+                lower_infeasible_lambda=lower_infeasible_lambda,
+                upper_feasible_lambda=lambda_value,
+                feasible_candidate=candidate,
+                trace=tuple(trace),
+            )
+
+        lower_infeasible_lambda = lambda_value
+        lambda_value *= 2
+
+    return LambdaBracketResult(
+        bracket_found=False,
+        feasible_at_zero=False,
+        lower_infeasible_lambda=lower_infeasible_lambda,
+        upper_feasible_lambda=None,
+        feasible_candidate=None,
+        trace=tuple(trace),
     )

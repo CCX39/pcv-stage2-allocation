@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 1B handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1B so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 1C handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1C so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,13 +13,13 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 1B: fixed-lambda selection kernel completed
+Phase 1C: adaptive lambda bracketing and trace contract completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 1C preparation: lambda search interface and solver assembly boundary planning
+Phase 1D preparation: bisection search kernel and final solver assembly boundary planning
 ```
 
 No complete Stage2 solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
@@ -36,6 +36,7 @@ a72e618  fix: make stage2 input description optional
 7ec5f22  test: add handcheck fixture validation script
 bf1ef90  feat: add stage2 python model layer
 daf90e0  fix: clarify target-aware lookup boundary
+e3022ed  feat: add fixed lambda selection kernel
 ```
 
 ## Decision State
@@ -61,9 +62,12 @@ D0-4 provenance vocabulary  DRAFT
 - `scripts/validate_handcheck_fixtures.py`
 - `src/pcv_stage2/`
 - `tests/test_models_handcheck.py`
+- `tests/test_lambda_bracketing.py`
 - `requirements.txt`
 - `docs/fixed_lambda_selection_contract.md`
 - `docs/fixed_lambda_selection_contract.zh-CN.md`
+- `docs/lambda_bracketing_contract.md`
+- `docs/lambda_bracketing_contract.zh-CN.md`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
 - `docs/decision_log.zh-CN.md`
@@ -87,7 +91,7 @@ python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-The fixture guardrail script keeps an independent validation path for draft schemas and handcheck JSON files. The pytest suite separately checks the model layer, lookup cap preprocessing, `B_min_feasible`, the Phase 1B fixed-lambda kernel, and handcheck expected values. Neither command runs a complete solver.
+The fixture guardrail script keeps an independent validation path for draft schemas and handcheck JSON files. The pytest suite separately checks the model layer, lookup cap preprocessing, `B_min_feasible`, the Phase 1B fixed-lambda kernel, the Phase 1C bracketing trace kernel, and handcheck expected values. Neither command runs a complete solver.
 
 ## Target-Aware Lookup Boundary
 
@@ -98,6 +102,12 @@ The fixture guardrail script keeps an independent validation path for draft sche
 Phase 1B adds `select_fixed_lambda(...)`. It selects one allowed level per tile by maximizing `net_utility - lambda_value * r_bytes`, using lookup cap candidates and the D0-3 deterministic tie-break order.
 
 The output is a fixed-lambda candidate. Its `is_budget_feasible` field only describes that candidate and is not a final `SUCCESS` or `INFEASIBLE_BUDGET` status.
+
+## Lambda Bracketing Kernel
+
+Phase 1C adds `bracket_lambda_for_feasible_candidate(...)`. It probes `lambda = 0` first, then doubles positive lambda values from `lambda_initial_high` until the first budget-feasible fixed-lambda candidate is found or `lambda_max_bracket_steps` is exhausted.
+
+The output is a bracket result and trace, not a final Stage2 result. It records per-probe lambda, total bytes, original net utility, total decode time, budget feasibility, and selected levels. If `budget_total_bytes < B_min_feasible`, the helper raises a preprocessing error and leaves final `INFEASIBLE_BUDGET` assembly to the future solver layer.
 
 ## Handcheck Fixture Core Results
 
@@ -123,7 +133,8 @@ status = INFEASIBLE_BUDGET
 
 - Python or TypeScript solver;
 - general-purpose validator;
-- `lambda` search;
+- binary search and complete `lambda` search;
+- best feasible candidate ranking;
 - local upgrade;
 - baselines;
 - Longdress input generation;
@@ -134,10 +145,10 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into a full solver without reviewing the fixed-lambda kernel first. A reasonable next step is:
+Do not jump directly into a full solver without reviewing the bracketing trace kernel first. A reasonable next step is:
 
 ```text
-Phase 1C: lambda search interface and solver assembly boundary planning
+Phase 1D: bisection search kernel and final solver assembly boundary planning
 ```
 
 This document only records suggestions. It does not start either phase.
@@ -149,8 +160,9 @@ For a new GPT conversation or human handoff:
 1. Read `docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md` first.
 2. Then read `docs/stage2_mvp_contract.zh-CN.md`.
 3. Then read `docs/fixed_lambda_selection_contract.zh-CN.md`.
-4. Then read `docs/schema_contract.zh-CN.md`.
-5. Then inspect `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`.
-6. Run `python -m pytest` and `python scripts/validate_handcheck_fixtures.py` after installing requirements.
-7. Do not change the frozen semantics of D0-1, D0-2, or D0-3.
-8. Do not treat the `handcheck_3x3` fixture as a real Longdress experiment.
+4. Then read `docs/lambda_bracketing_contract.zh-CN.md`.
+5. Then read `docs/schema_contract.zh-CN.md`.
+6. Then inspect `tests/fixtures/handcheck_3x3/hand_calculation.zh-CN.md`.
+7. Run `python -m pytest` and `python scripts/validate_handcheck_fixtures.py` after installing requirements.
+8. Do not change the frozen semantics of D0-1, D0-2, or D0-3.
+9. Do not treat the `handcheck_3x3` fixture as a real Longdress experiment.

@@ -119,7 +119,7 @@ INTERNAL_CONSTRAINT_VIOLATION
 - `iterations`
 - `best_feasible_iteration`
 
-每次迭代可记录 `lambda`、`total_bytes`、`total_net_utility`、`is_budget_feasible` 和迭代编号。
+每次迭代可记录 `lambda`、`total_bytes`、`total_net_utility`、`total_decode_ms`、`is_budget_feasible`、`selected_levels` 和迭代编号。`selected_levels` 用于记录每次 bracket 或二分 probe 的离散选档结果，方便复现搜索轨迹。
 
 ## 6. 数据来源词汇
 

@@ -119,7 +119,7 @@ INTERNAL_CONSTRAINT_VIOLATION
 - `iterations`
 - `best_feasible_iteration`
 
-Each iteration can record `lambda`, `total_bytes`, `total_net_utility`, `is_budget_feasible`, and its iteration index.
+Each iteration can record `lambda`, `total_bytes`, `total_net_utility`, `total_decode_ms`, `is_budget_feasible`, `selected_levels`, and its iteration index. `selected_levels` records the discrete tile-level choices for each bracket or bisection probe so the search trace can be reproduced.
 
 ## 6. Provenance Vocabulary
 

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
 
 def _as_tuple(items: tuple[Any, ...] | list[Any]) -> tuple[Any, ...]:
     return tuple(items)
+
+
+def _is_real_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 @dataclass(frozen=True)
@@ -212,3 +217,103 @@ class FixedLambdaSelection:
         object.__setattr__(self, "tile_selections", _as_tuple(self.tile_selections))
         if not self.tile_selections:
             raise ValueError("fixed-lambda selection must contain at least one tile")
+
+
+@dataclass(frozen=True)
+class LambdaBracketConfig:
+    lambda_initial_high: float
+    lambda_max_bracket_steps: int
+    score_epsilon: float
+
+    def __post_init__(self) -> None:
+        if (
+            not _is_real_number(self.lambda_initial_high)
+            or not math.isfinite(self.lambda_initial_high)
+            or self.lambda_initial_high <= 0
+        ):
+            raise ValueError(
+                "lambda_initial_high must be finite and positive, "
+                f"got {self.lambda_initial_high!r}"
+            )
+        if (
+            isinstance(self.lambda_max_bracket_steps, bool)
+            or not isinstance(self.lambda_max_bracket_steps, int)
+            or self.lambda_max_bracket_steps <= 0
+        ):
+            raise ValueError(
+                "lambda_max_bracket_steps must be a positive integer, "
+                f"got {self.lambda_max_bracket_steps!r}"
+            )
+        if (
+            not _is_real_number(self.score_epsilon)
+            or not math.isfinite(self.score_epsilon)
+            or self.score_epsilon < 0
+        ):
+            raise ValueError(
+                "score_epsilon must be finite and non-negative, "
+                f"got {self.score_epsilon!r}"
+            )
+
+
+@dataclass(frozen=True)
+class LambdaSelectedLevel:
+    tile_id: str
+    selected_level_id: int
+
+    def __post_init__(self) -> None:
+        if self.selected_level_id < 1:
+            raise ValueError(
+                f"{self.tile_id} selected_level_id must be >= 1, "
+                f"got {self.selected_level_id}"
+            )
+
+
+@dataclass(frozen=True)
+class LambdaTracePoint:
+    step_index: int
+    lambda_value: float
+    total_bytes: float
+    total_net_utility: float
+    total_decode_ms: float
+    is_budget_feasible: bool
+    selected_levels: tuple[LambdaSelectedLevel, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "selected_levels", _as_tuple(self.selected_levels))
+        if self.step_index < 0:
+            raise ValueError(f"step_index must be >= 0, got {self.step_index}")
+        if not math.isfinite(self.lambda_value) or self.lambda_value < 0:
+            raise ValueError(
+                f"lambda_value must be finite and non-negative, got {self.lambda_value!r}"
+            )
+        if self.total_bytes < 0:
+            raise ValueError(f"total_bytes must be >= 0, got {self.total_bytes!r}")
+        if self.total_decode_ms < 0:
+            raise ValueError(
+                f"total_decode_ms must be >= 0, got {self.total_decode_ms!r}"
+            )
+
+
+@dataclass(frozen=True)
+class LambdaBracketResult:
+    bracket_found: bool
+    feasible_at_zero: bool
+    lower_infeasible_lambda: float | None
+    upper_feasible_lambda: float | None
+    feasible_candidate: FixedLambdaSelection | None
+    trace: tuple[LambdaTracePoint, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "trace", _as_tuple(self.trace))
+        if not self.trace:
+            raise ValueError("lambda bracket result must contain at least one trace point")
+        if self.feasible_at_zero and (
+            not self.bracket_found
+            or self.lower_infeasible_lambda is not None
+            or self.upper_feasible_lambda != 0
+        ):
+            raise ValueError("feasible-at-zero bracket result has inconsistent bounds")
+        if self.bracket_found and self.feasible_candidate is None:
+            raise ValueError("successful bracket result must include feasible_candidate")
+        if not self.bracket_found and self.feasible_candidate is not None:
+            raise ValueError("failed bracket result must not include feasible_candidate")

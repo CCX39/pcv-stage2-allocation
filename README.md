@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 1B: fixed-lambda selection kernel**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel. These phases create documentation, validation scaffolding, and model-layer boundaries only. They do not implement the complete Stage2 solver.
+This repository is currently at **Phase 1C: adaptive lambda bracketing and trace contract**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models. These phases create documentation, validation scaffolding, and model-layer boundaries only. They do not implement the complete Stage2 solver.
 
 ## Work1 Structure
 
@@ -93,6 +93,12 @@ The result is a fixed-lambda candidate, not a final Stage2 result. It records to
 
 This phase still does not implement lambda upper-bound expansion, binary search, best feasible tracking, local upgrade, baselines, or final solver assembly.
 
+## Phase 1C Lambda Bracketing Trace Kernel
+
+Phase 1C adds `bracket_lambda_for_feasible_candidate(...)`, which first probes `lambda = 0` and then doubles positive lambda values until it finds the first budget-feasible fixed-lambda candidate or exhausts `lambda_max_bracket_steps`.
+
+The bracket output is trace data, not a final Stage2 result. It records each probe's lambda, total bytes, original net utility, total decode time, budget feasibility, and selected levels. This phase still does not implement binary search, best feasible candidate ranking, local upgrade, final `solve_stage2`, or final `SUCCESS` / `INFEASIBLE_BUDGET` assembly.
+
 ## Current Structure
 
 ```text
@@ -111,7 +117,9 @@ pcv-stage2-allocation/
 │  ├─ schema_contract.md
 │  ├─ schema_contract.zh-CN.md
 │  ├─ fixed_lambda_selection_contract.md
-│  └─ fixed_lambda_selection_contract.zh-CN.md
+│  ├─ fixed_lambda_selection_contract.zh-CN.md
+│  ├─ lambda_bracketing_contract.md
+│  └─ lambda_bracketing_contract.zh-CN.md
 ├─ schemas/
 │  ├─ stage2_input.schema.json
 │  ├─ distance_lookup.schema.json
@@ -122,6 +130,7 @@ pcv-stage2-allocation/
 │     └─ .gitkeep
 ├─ tests/
 │  ├─ test_models_handcheck.py
+│  ├─ test_lambda_bracketing.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -153,6 +162,7 @@ pcv-stage2-allocation/
 
 - [Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.md): quick handoff summary for the current phase, decisions, assets, and next-step suggestions.
 - [Fixed-Lambda Selection Contract](docs/fixed_lambda_selection_contract.md): local fixed-lambda candidate rule, tie-breaking, and solver boundary.
+- [Lambda Bracketing Contract](docs/lambda_bracketing_contract.md): adaptive upper-bound bracketing, trace fields, and solver boundary.
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and resolved MVP decision defaults.
 - [Schema Contract](docs/schema_contract.md): explains the Stage2 input, distance lookup, and result Schema drafts.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
@@ -160,6 +170,7 @@ pcv-stage2-allocation/
 - [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md): manual calculation for the synthetic 3x3 fixture.
 - [Chinese Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)
 - [Chinese Fixed-Lambda Selection Contract](docs/fixed_lambda_selection_contract.zh-CN.md)
+- [Chinese Lambda Bracketing Contract](docs/lambda_bracketing_contract.zh-CN.md)
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
 - [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)
@@ -170,6 +181,9 @@ pcv-stage2-allocation/
 This repository currently has no:
 
 - Stage2 solver;
+- binary search and complete lambda search;
+- best feasible candidate ranking;
+- local upgrade;
 - general-purpose JSON validator;
 - fixture generator;
 - formal experiment result;
@@ -180,4 +194,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 1B is reviewed, the next suggested step is to plan the lambda search interface and final solver assembly boundaries. Lambda upper-bound expansion, binary search, local upgrade, experiments, and player integration remain outside the current scope.
+After Phase 1C is reviewed, the next suggested step is to plan the bisection search kernel and final solver assembly boundaries. Binary search, best feasible candidate ranking, local upgrade, experiments, and player integration remain outside the current scope.

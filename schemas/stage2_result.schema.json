@@ -310,6 +310,8 @@
         "lambda",
         "total_bytes",
         "total_net_utility",
+        "total_decode_ms",
+        "selected_levels",
         "is_budget_feasible"
       ],
       "properties": {
@@ -328,8 +330,36 @@
         "total_net_utility": {
           "type": "number"
         },
+        "total_decode_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "selected_levels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/lambdaSelectedLevel"
+          }
+        },
         "is_budget_feasible": {
           "type": "boolean"
+        }
+      }
+    },
+    "lambdaSelectedLevel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tile_id",
+        "selected_level_id"
+      ],
+      "properties": {
+        "tile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selected_level_id": {
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
