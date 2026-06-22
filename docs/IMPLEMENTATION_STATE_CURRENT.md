@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 1E handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1E so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 1F handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1F so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,16 +13,16 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 1E: final solver API and structured result assembly completed
+Phase 1F: residual-budget local upgrade integration completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 1F preparation: local upgrade boundary or result inspection workflow planning
+Phase 1G preparation: result inspection workflow or solver output documentation
 ```
 
-No local upgrade, exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
+No exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
 
 ## Key Commit History
 
@@ -39,6 +39,7 @@ daf90e0  fix: clarify target-aware lookup boundary
 e3022ed  feat: add fixed lambda selection kernel
 c0a0075  feat: add lambda bracketing trace kernel
 fb88ce4  feat: add lambda bisection search kernel
+0b3bf42  feat: add structured stage2 solver result
 ```
 
 ## Decision State
@@ -100,7 +101,7 @@ python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-The fixture guardrail script keeps an independent validation path for draft schemas and handcheck JSON files. The pytest suite separately checks the model layer, lookup cap preprocessing, `B_min_feasible`, the Phase 1B fixed-lambda kernel, the Phase 1C bracketing trace kernel, the Phase 1D bisection search kernel, the Phase 1E structured solver result, and handcheck expected values.
+The fixture guardrail script keeps an independent validation path for draft schemas and handcheck JSON files. The pytest suite separately checks the model layer, lookup cap preprocessing, `B_min_feasible`, the Phase 1B fixed-lambda kernel, the Phase 1C bracketing trace kernel, the Phase 1D bisection search kernel, the Phase 1E structured solver result, the Phase 1F residual-budget local upgrade, and handcheck expected values.
 
 ## Target-Aware Lookup Boundary
 
@@ -132,6 +133,12 @@ The output is a `Stage2SolveResult`. `Stage2SolveResult.to_dict()` produces a JS
 
 This is still a low-complexity approximation path for the Stage2 allocation problem. It must not be described as an exact 0-1 MCKP global solver.
 
+## Residual-Budget Local Upgrade
+
+Phase 1F adds a local-upgrade postprocess after successful lambda search. The seed is always the lambda search `best_feasible_candidate`, identified by `lambda_search.best_feasible_iteration`.
+
+Each upgrade stays inside `allowed_levels`, requires positive added bytes and positive net utility, and must fit in the current residual budget. The greedy order is highest gain per byte, with exact ties resolved by ascending `(tile_id, target_level_id)`. The upgrade audit is recorded in `local_upgrade.steps[]`; lambda trace remains only the lambda search trace.
+
 ## Handcheck Fixture Core Results
 
 Success case:
@@ -155,7 +162,6 @@ status = INFEASIBLE_BUDGET
 ## Not Implemented Yet
 
 - general-purpose validator;
-- local upgrade;
 - exact or exhaustive MCKP solver;
 - baselines;
 - Longdress input generation;
@@ -166,10 +172,10 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into experiments without reviewing the structured solver result first. A reasonable next step is:
+Do not jump directly into experiments without reviewing the local-upgrade audit first. A reasonable next step is:
 
 ```text
-Phase 1F: local upgrade boundary or result inspection workflow planning
+Phase 1G: result inspection workflow or solver output documentation
 ```
 
 This document only records suggestions. It does not start either phase.

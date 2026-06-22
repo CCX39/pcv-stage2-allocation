@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段1E：最终 solver API 与结构化 result 组装**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装。当前实现是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
+当前仓库处于**阶段1F：剩余预算 local upgrade 集成**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade。当前实现是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
 
 ## Work1 结构
 
@@ -111,7 +111,13 @@ bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 pr
 
 对于最低预算可行的输入，它会运行阶段1D lambda search，并组装 `Stage2SolveResult`。`Stage2SolveResult.to_dict()` 返回 JSON-compatible payload，可通过 `schemas/stage2_result.schema.json` 校验。结果包含 selected tiles、lookup resolution、lambda trace、config snapshot、runtime、warnings 和 errors。
 
-本阶段仍未实现 local upgrade、精确 MCKP 求解、baseline、Longdress 输入生成、批量实验、绘图、播放器集成、Stage1 在线集成或 JSON 文件输出 CLI。
+本阶段仍未实现精确 MCKP 求解、baseline、Longdress 输入生成、批量实验、绘图、播放器集成、Stage1 在线集成或 JSON 文件输出 CLI。
+
+## 阶段1F 剩余预算 Local Upgrade
+
+阶段1F在 lambda search 返回预算可行 seed candidate 后执行轻量级 local upgrade。seed 始终来自 `lambda_search.best_feasible_iteration`，不是最后一个 trace point。
+
+每个 upgrade step 只能在该 tile 的 `allowed_levels` 内升级，要求增量数据量为正、增量净效用为正且不超过当前剩余预算，然后选择单位预算收益最大的候选；若收益完全相同，按 `(tile_id, target_level_id)` 升序决胜。升级步骤记录在 `local_upgrade.steps[]` 中，不会混入 `lambda_search.iterations[]`，也不会改写 lambda trace。
 
 ## 当前目录结构
 
@@ -201,7 +207,6 @@ pcv-stage2-allocation/
 
 本仓库当前没有：
 
-- local upgrade；
 - 精确或穷举 MCKP 求解器；
 - baseline 算法；
 - Longdress 输入生成器；
@@ -217,4 +222,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段1E经人工审查后，下一步可以规划 local upgrade 边界或小型结果检查流程。精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。
+阶段1F经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。

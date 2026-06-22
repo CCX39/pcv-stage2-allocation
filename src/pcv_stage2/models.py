@@ -469,6 +469,59 @@ class Stage2SelectedTile:
 
 
 @dataclass(frozen=True)
+class Stage2LocalUpgradeStep:
+    step_index: int
+    tile_id: str
+    from_level_id: int
+    to_level_id: int
+    delta_r_bytes: float
+    delta_net_utility: float
+    gain_per_byte: float
+    total_bytes_after: float
+    total_net_utility_after: float
+    total_decode_ms_after: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "step_index": self.step_index,
+            "tile_id": self.tile_id,
+            "from_level_id": self.from_level_id,
+            "to_level_id": self.to_level_id,
+            "delta_r_bytes": self.delta_r_bytes,
+            "delta_net_utility": self.delta_net_utility,
+            "gain_per_byte": self.gain_per_byte,
+            "total_bytes_after": self.total_bytes_after,
+            "total_net_utility_after": self.total_net_utility_after,
+            "total_decode_ms_after": self.total_decode_ms_after,
+        }
+
+
+@dataclass(frozen=True)
+class Stage2LocalUpgradeAudit:
+    enabled: bool
+    seed_best_feasible_trace_index: int | None
+    initial_total_bytes: float | None
+    initial_total_net_utility: float | None
+    initial_total_decode_ms: float | None
+    steps: tuple[Stage2LocalUpgradeStep, ...]
+    termination_reason: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "steps", _as_tuple(self.steps))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "enabled": self.enabled,
+            "seed_best_feasible_trace_index": self.seed_best_feasible_trace_index,
+            "initial_total_bytes": self.initial_total_bytes,
+            "initial_total_net_utility": self.initial_total_net_utility,
+            "initial_total_decode_ms": self.initial_total_decode_ms,
+            "steps": [step.to_dict() for step in self.steps],
+            "termination_reason": self.termination_reason,
+        }
+
+
+@dataclass(frozen=True)
 class Stage2SolveResult:
     schema_version: str
     scenario_id: str
@@ -484,6 +537,7 @@ class Stage2SolveResult:
     selected_tiles: tuple[Stage2SelectedTile, ...]
     lookup_resolution: tuple[LookupResolution, ...]
     lambda_search: dict[str, Any]
+    local_upgrade: Stage2LocalUpgradeAudit
     runtime_ms: float | None
     config_snapshot: dict[str, Any]
     warnings: tuple[Stage2Message, ...] = ()
@@ -522,6 +576,7 @@ class Stage2SolveResult:
                 for item in self.lookup_resolution
             ],
             "lambda_search": _json_compatible(self.lambda_search),
+            "local_upgrade": self.local_upgrade.to_dict(),
             "runtime_ms": self.runtime_ms,
             "config_snapshot": _json_compatible(self.config_snapshot),
             "warnings": [item.to_dict() for item in self.warnings],

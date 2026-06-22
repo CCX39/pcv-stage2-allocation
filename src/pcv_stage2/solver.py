@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import time
+from dataclasses import dataclass
 
 from .models import (
     DistanceLookup,
@@ -9,7 +10,10 @@ from .models import (
     LambdaSearchConfig,
     LambdaSearchResult,
     LookupResolution,
+    QualityLevel,
     Stage2Input,
+    Stage2LocalUpgradeAudit,
+    Stage2LocalUpgradeStep,
     Stage2Message,
     Stage2SelectedTile,
     Stage2SolveResult,
@@ -24,12 +28,22 @@ from .preprocess import (
 
 
 RESULT_SCHEMA_VERSION = "0.1.0"
-SOLVER_ALGORITHM = "phase1e_lambda_search_no_local_upgrade"
+SOLVER_ALGORITHM = "phase1f_lambda_search_with_local_upgrade"
 FLOAT_EPSILON = 1e-9
 
 
 class InternalSolverInvariantError(RuntimeError):
     """Raised when assembled solver output violates an internal invariant."""
+
+
+@dataclass(frozen=True)
+class _UpgradeCandidate:
+    tile_id: str
+    from_level_id: int
+    to_level_id: int
+    delta_r_bytes: float
+    delta_net_utility: float
+    gain_per_byte: float
 
 
 def _lambda_config_to_dict(config: LambdaSearchConfig) -> dict[str, float | int]:
@@ -55,6 +69,10 @@ def _config_snapshot(
         "lookup_profile_id": lookup.lookup_profile_id,
         "lookup_semantics": lookup.semantics,
         "lambda_search_config": _lambda_config_to_dict(config),
+        "local_upgrade": {
+            "enabled_on_success": True,
+            "rule": "greedy_positive_gain_per_byte_within_allowed_levels",
+        },
     }
 
 
@@ -69,6 +87,18 @@ def _disabled_lambda_search() -> dict[str, object]:
         "iterations": [],
         "best_feasible_iteration": None,
     }
+
+
+def _disabled_local_upgrade() -> Stage2LocalUpgradeAudit:
+    return Stage2LocalUpgradeAudit(
+        enabled=False,
+        seed_best_feasible_trace_index=None,
+        initial_total_bytes=None,
+        initial_total_net_utility=None,
+        initial_total_decode_ms=None,
+        steps=(),
+        termination_reason="NOT_RUN",
+    )
 
 
 def _enabled_lambda_search(
@@ -134,6 +164,7 @@ def _finish(
     selected_tiles: tuple[Stage2SelectedTile, ...] = (),
     lookup_resolution: tuple[LookupResolution, ...] = (),
     lambda_search: dict[str, object] | None = None,
+    local_upgrade: Stage2LocalUpgradeAudit | None = None,
     warnings: tuple[Stage2Message, ...] = (),
     errors: tuple[Stage2Message, ...] = (),
 ) -> Stage2SolveResult:
@@ -153,6 +184,7 @@ def _finish(
         selected_tiles=selected_tiles,
         lookup_resolution=lookup_resolution,
         lambda_search=lambda_search or _disabled_lambda_search(),
+        local_upgrade=local_upgrade or _disabled_local_upgrade(),
         runtime_ms=runtime_ms,
         config_snapshot=_config_snapshot(stage2_input, lookup, config),
         warnings=warnings,
@@ -189,20 +221,26 @@ def _check_close(name: str, left: float, right: float) -> None:
 
 def _assemble_success_selection(
     stage2_input: Stage2Input,
-    candidate: FixedLambdaSelection,
+    candidate: FixedLambdaSelection | None,
     resolutions: tuple[LookupResolution, ...],
 ) -> tuple[tuple[Stage2SelectedTile, ...], float, float, float, float]:
-    if not candidate.is_budget_feasible:
-        raise InternalSolverInvariantError("best feasible candidate is over budget")
-
-    if len(candidate.tile_selections) != len(stage2_input.tiles):
-        raise InternalSolverInvariantError("candidate does not select one level per tile")
+    if candidate is None:
+        raise InternalSolverInvariantError("missing success candidate")
 
     selections_by_tile = {
-        selection.tile_id: selection for selection in candidate.tile_selections
+        selection.tile_id: selection.selected_level_id
+        for selection in candidate.tile_selections
     }
-    if len(selections_by_tile) != len(stage2_input.tiles):
-        raise InternalSolverInvariantError("candidate has duplicate or missing tile ids")
+    return _assemble_selection_from_level_ids(stage2_input, selections_by_tile, resolutions)
+
+
+def _assemble_selection_from_level_ids(
+    stage2_input: Stage2Input,
+    selected_level_ids: dict[str, int],
+    resolutions: tuple[LookupResolution, ...],
+) -> tuple[tuple[Stage2SelectedTile, ...], float, float, float, float]:
+    if len(selected_level_ids) != len(stage2_input.tiles):
+        raise InternalSolverInvariantError("candidate does not select one level per tile")
 
     resolutions_by_tile = {resolution.tile_id: resolution for resolution in resolutions}
     selected_tiles: list[Stage2SelectedTile] = []
@@ -212,28 +250,20 @@ def _assemble_success_selection(
     total_decode_ms = 0.0
 
     for tile in stage2_input.tiles:
-        selection = selections_by_tile.get(tile.tile_id)
+        selected_level_id = selected_level_ids.get(tile.tile_id)
         resolution = resolutions_by_tile.get(tile.tile_id)
-        if selection is None or resolution is None:
+        if selected_level_id is None or resolution is None:
             raise InternalSolverInvariantError(
                 f"candidate is missing selection or lookup resolution for {tile.tile_id}"
             )
-        if selection.selected_level_id not in resolution.allowed_levels:
+        if selected_level_id not in resolution.allowed_levels:
             raise InternalSolverInvariantError(
                 f"{tile.tile_id} selected level is outside allowed levels"
             )
 
-        level = tile.level_by_id(selection.selected_level_id)
+        level = tile.level_by_id(selected_level_id)
         spatial_utility = compute_spatial_utility(tile, level)
         net_utility = compute_net_utility(tile, level, stage2_input.eta)
-
-        _check_close(f"{tile.tile_id} r_bytes", selection.selected_r_bytes, level.r_bytes)
-        _check_close(f"{tile.tile_id} d_ms", selection.selected_d_ms, level.d_ms)
-        _check_close(
-            f"{tile.tile_id} net_utility",
-            selection.selected_net_utility,
-            net_utility,
-        )
 
         selected_tiles.append(
             Stage2SelectedTile(
@@ -251,17 +281,219 @@ def _assemble_success_selection(
         total_spatial_utility += spatial_utility
         total_decode_ms += level.d_ms
 
-    _check_close("candidate total_bytes", candidate.total_bytes, total_bytes)
-    _check_close("candidate total_net_utility", candidate.total_net_utility, total_net_utility)
-    if total_bytes > stage2_input.budget_total_bytes + FLOAT_EPSILON:
-        raise InternalSolverInvariantError("assembled selected tiles exceed budget")
-
     return (
         tuple(selected_tiles),
         total_bytes,
         total_net_utility,
         total_spatial_utility,
         total_decode_ms,
+    )
+
+
+def _check_candidate_matches_assembled(
+    candidate: FixedLambdaSelection,
+    total_bytes: float,
+    total_net_utility: float,
+    total_decode_ms: float,
+) -> None:
+    if not candidate.is_budget_feasible:
+        raise InternalSolverInvariantError("best feasible candidate is over budget")
+    _check_close("candidate total_bytes", candidate.total_bytes, total_bytes)
+    _check_close("candidate total_net_utility", candidate.total_net_utility, total_net_utility)
+    _check_close(
+        "candidate total_decode_ms",
+        sum(selection.selected_d_ms for selection in candidate.tile_selections),
+        total_decode_ms,
+    )
+
+
+def _level_net_utility(
+    stage2_input: Stage2Input,
+    tile_id: str,
+    level: QualityLevel,
+) -> float:
+    return compute_net_utility(
+        stage2_input.tile_by_id(tile_id),
+        level,
+        stage2_input.eta,
+    )
+
+
+def _candidate_for_tile_upgrade(
+    stage2_input: Stage2Input,
+    tile_id: str,
+    current_level_id: int,
+    target_level_id: int,
+) -> _UpgradeCandidate:
+    tile = stage2_input.tile_by_id(tile_id)
+    current_level = tile.level_by_id(current_level_id)
+    target_level = tile.level_by_id(target_level_id)
+    delta_r_bytes = target_level.r_bytes - current_level.r_bytes
+    delta_net_utility = _level_net_utility(
+        stage2_input,
+        tile_id,
+        target_level,
+    ) - _level_net_utility(stage2_input, tile_id, current_level)
+    return _UpgradeCandidate(
+        tile_id=tile_id,
+        from_level_id=current_level_id,
+        to_level_id=target_level_id,
+        delta_r_bytes=delta_r_bytes,
+        delta_net_utility=delta_net_utility,
+        gain_per_byte=delta_net_utility / delta_r_bytes
+        if delta_r_bytes > 0
+        else 0.0,
+    )
+
+
+def _find_upgrade_candidates(
+    stage2_input: Stage2Input,
+    resolutions: tuple[LookupResolution, ...],
+    current_level_ids: dict[str, int],
+    residual_budget: float,
+) -> list[_UpgradeCandidate]:
+    candidates: list[_UpgradeCandidate] = []
+    for resolution in resolutions:
+        current_level_id = current_level_ids[resolution.tile_id]
+        for target_level_id in resolution.allowed_levels:
+            if target_level_id <= current_level_id:
+                continue
+            candidate = _candidate_for_tile_upgrade(
+                stage2_input,
+                resolution.tile_id,
+                current_level_id,
+                target_level_id,
+            )
+            if (
+                candidate.delta_r_bytes > FLOAT_EPSILON
+                and candidate.delta_r_bytes <= residual_budget + FLOAT_EPSILON
+                and candidate.delta_net_utility > FLOAT_EPSILON
+            ):
+                candidates.append(candidate)
+    candidates.sort(
+        key=lambda item: (
+            -item.gain_per_byte,
+            item.tile_id,
+            item.to_level_id,
+        )
+    )
+    return candidates
+
+
+def _apply_local_upgrade(
+    stage2_input: Stage2Input,
+    seed_candidate: FixedLambdaSelection,
+    seed_best_feasible_trace_index: int,
+    resolutions: tuple[LookupResolution, ...],
+) -> tuple[
+    tuple[Stage2SelectedTile, ...],
+    float,
+    float,
+    float,
+    float,
+    Stage2LocalUpgradeAudit,
+]:
+    current_level_ids = {
+        selection.tile_id: selection.selected_level_id
+        for selection in seed_candidate.tile_selections
+    }
+    (
+        _seed_selected_tiles,
+        total_bytes,
+        total_net_utility,
+        _seed_spatial_utility,
+        total_decode_ms,
+    ) = _assemble_success_selection(stage2_input, seed_candidate, resolutions)
+    _check_candidate_matches_assembled(
+        seed_candidate,
+        total_bytes,
+        total_net_utility,
+        total_decode_ms,
+    )
+
+    initial_total_bytes = total_bytes
+    initial_total_net_utility = total_net_utility
+    initial_total_decode_ms = total_decode_ms
+    residual_budget = stage2_input.budget_total_bytes - total_bytes
+    steps: list[Stage2LocalUpgradeStep] = []
+
+    while residual_budget > FLOAT_EPSILON:
+        candidates = _find_upgrade_candidates(
+            stage2_input,
+            resolutions,
+            current_level_ids,
+            residual_budget,
+        )
+        if not candidates:
+            break
+
+        candidate = candidates[0]
+        tile = stage2_input.tile_by_id(candidate.tile_id)
+        current_level = tile.level_by_id(candidate.from_level_id)
+        target_level = tile.level_by_id(candidate.to_level_id)
+        total_bytes += candidate.delta_r_bytes
+        total_net_utility += candidate.delta_net_utility
+        total_decode_ms += target_level.d_ms - current_level.d_ms
+        residual_budget -= candidate.delta_r_bytes
+        current_level_ids[candidate.tile_id] = candidate.to_level_id
+        steps.append(
+            Stage2LocalUpgradeStep(
+                step_index=len(steps),
+                tile_id=candidate.tile_id,
+                from_level_id=candidate.from_level_id,
+                to_level_id=candidate.to_level_id,
+                delta_r_bytes=candidate.delta_r_bytes,
+                delta_net_utility=candidate.delta_net_utility,
+                gain_per_byte=candidate.gain_per_byte,
+                total_bytes_after=total_bytes,
+                total_net_utility_after=total_net_utility,
+                total_decode_ms_after=total_decode_ms,
+            )
+        )
+
+    (
+        final_selected_tiles,
+        final_total_bytes,
+        final_total_net_utility,
+        final_total_spatial_utility,
+        final_total_decode_ms,
+    ) = _assemble_selection_from_level_ids(
+        stage2_input,
+        current_level_ids,
+        resolutions,
+    )
+    _check_close("local-upgrade total_bytes", total_bytes, final_total_bytes)
+    _check_close(
+        "local-upgrade total_net_utility",
+        total_net_utility,
+        final_total_net_utility,
+    )
+    _check_close(
+        "local-upgrade total_decode_ms",
+        total_decode_ms,
+        final_total_decode_ms,
+    )
+    if final_total_bytes > stage2_input.budget_total_bytes + FLOAT_EPSILON:
+        raise InternalSolverInvariantError("local upgrade selected tiles exceed budget")
+    if final_total_net_utility + FLOAT_EPSILON < initial_total_net_utility:
+        raise InternalSolverInvariantError("local upgrade reduced total net utility")
+
+    audit = Stage2LocalUpgradeAudit(
+        enabled=True,
+        seed_best_feasible_trace_index=seed_best_feasible_trace_index,
+        initial_total_bytes=initial_total_bytes,
+        initial_total_net_utility=initial_total_net_utility,
+        initial_total_decode_ms=initial_total_decode_ms,
+        steps=tuple(steps),
+        termination_reason="NO_FEASIBLE_POSITIVE_UPGRADE",
+    )
+    return (
+        final_selected_tiles,
+        final_total_bytes,
+        final_total_net_utility,
+        final_total_spatial_utility,
+        final_total_decode_ms,
+        audit,
     )
 
 
@@ -361,15 +593,21 @@ def solve_stage2(
         )
 
     try:
+        if search_result.best_feasible_trace_index is None:
+            raise InternalSolverInvariantError(
+                "missing best feasible trace index for local upgrade seed"
+            )
         (
             selected_tiles,
             total_bytes,
             total_net_utility,
             total_spatial_utility,
             total_decode_ms,
-        ) = _assemble_success_selection(
+            local_upgrade,
+        ) = _apply_local_upgrade(
             stage2_input,
             search_result.best_feasible_candidate,
+            search_result.best_feasible_trace_index,
             resolutions,
         )
     except InternalSolverInvariantError as error:
@@ -388,6 +626,7 @@ def solve_stage2(
             budget_utilization=None,
             lookup_resolution=resolutions,
             lambda_search=lambda_search,
+            local_upgrade=local_upgrade,
             errors=(
                 Stage2Message(
                     code="RESULT_INVARIANT_VIOLATION",
@@ -412,4 +651,5 @@ def solve_stage2(
         selected_tiles=selected_tiles,
         lookup_resolution=resolutions,
         lambda_search=lambda_search,
+        local_upgrade=local_upgrade,
     )

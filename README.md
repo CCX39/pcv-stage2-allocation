@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 1E: final solver API and structured result assembly**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly. This is a low-complexity approximation path for Stage2 allocation, not an exact 0-1 MCKP solver.
+This repository is currently at **Phase 1F: residual-budget local upgrade integration**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly; Phase 1F adds residual-budget local upgrade after the lambda-search seed. This is a low-complexity approximation path for Stage2 allocation, not an exact 0-1 MCKP solver.
 
 ## Work1 Structure
 
@@ -111,7 +111,13 @@ Phase 1E adds `solve_stage2(stage2_input, lookup, config)`. It first resolves lo
 
 For budget-feasible inputs, it runs the Phase 1D lambda search and assembles a `Stage2SolveResult`. `Stage2SolveResult.to_dict()` returns a JSON-compatible payload that validates against `schemas/stage2_result.schema.json`. The result includes selected tiles, lookup resolution, lambda trace, config snapshot, runtime, warnings, and errors.
 
-This phase still does not implement local upgrade, exact MCKP solving, baselines, Longdress input generation, batch experiments, plotting, player integration, Stage1 online integration, or a JSON file output CLI.
+This phase still does not implement exact MCKP solving, baselines, Longdress input generation, batch experiments, plotting, player integration, Stage1 online integration, or a JSON file output CLI.
+
+## Phase 1F Residual-Budget Local Upgrade
+
+Phase 1F applies a lightweight local upgrade after lambda search returns a budget-feasible seed candidate. The seed is always `lambda_search.best_feasible_iteration`, not the last trace point.
+
+Each upgrade step stays inside the tile's `allowed_levels`, requires positive extra bytes, positive net-utility gain, and enough residual budget, then selects the largest gain per byte with deterministic `(tile_id, target_level_id)` tie-breaking. Upgrade steps are recorded in `local_upgrade.steps[]`; they are not mixed into `lambda_search.iterations[]` and do not rewrite the lambda trace.
 
 ## Current Structure
 
@@ -205,7 +211,6 @@ pcv-stage2-allocation/
 
 This repository currently has no:
 
-- local upgrade;
 - exact or exhaustive MCKP solver;
 - baseline algorithms;
 - Longdress input generator;
@@ -221,4 +226,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 1E is reviewed, the next suggested step is to plan either local-upgrade boundaries or a small result-inspection workflow. Exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.
+After Phase 1F is reviewed, the next suggested step is to plan a small result-inspection workflow or solver-output documentation. Exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.

@@ -53,6 +53,15 @@
     "iterations": [],
     "best_feasible_iteration": null
   },
+  "local_upgrade": {
+    "enabled": false,
+    "seed_best_feasible_trace_index": null,
+    "initial_total_bytes": null,
+    "initial_total_net_utility": null,
+    "initial_total_decode_ms": null,
+    "steps": [],
+    "termination_reason": "NOT_RUN"
+  },
   "runtime_ms": null,
   "config_snapshot": {
     "reference_type": "manual_handcheck",

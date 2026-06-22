@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/CCX39/pcv-stage2-allocation/schemas/stage2_result.schema.json",
   "title": "Stage2 MVP Result",
-  "description": "Draft schema for future Stage2 solver output. This schema describes output format only and does not indicate that a solver exists.",
+  "description": "Schema for the current Stage2 structured solver output.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,6 +20,7 @@
     "selected_tiles",
     "lookup_resolution",
     "lambda_search",
+    "local_upgrade",
     "runtime_ms",
     "config_snapshot",
     "warnings",
@@ -110,6 +111,9 @@
     },
     "lambda_search": {
       "$ref": "#/$defs/lambdaSearch"
+    },
+    "local_upgrade": {
+      "$ref": "#/$defs/localUpgrade"
     },
     "runtime_ms": {
       "type": [
@@ -360,6 +364,121 @@
         "selected_level_id": {
           "type": "integer",
           "minimum": 1
+        }
+      }
+    },
+    "localUpgrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "seed_best_feasible_trace_index",
+        "initial_total_bytes",
+        "initial_total_net_utility",
+        "initial_total_decode_ms",
+        "steps",
+        "termination_reason"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "seed_best_feasible_trace_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "initial_total_bytes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "initial_total_net_utility": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "initial_total_decode_ms": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/localUpgradeStep"
+          }
+        },
+        "termination_reason": {
+          "type": "string",
+          "enum": [
+            "NOT_RUN",
+            "NO_FEASIBLE_POSITIVE_UPGRADE"
+          ]
+        }
+      }
+    },
+    "localUpgradeStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_index",
+        "tile_id",
+        "from_level_id",
+        "to_level_id",
+        "delta_r_bytes",
+        "delta_net_utility",
+        "gain_per_byte",
+        "total_bytes_after",
+        "total_net_utility_after",
+        "total_decode_ms_after"
+      ],
+      "properties": {
+        "step_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from_level_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "to_level_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "delta_r_bytes": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "delta_net_utility": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "gain_per_byte": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "total_bytes_after": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total_net_utility_after": {
+          "type": "number"
+        },
+        "total_decode_ms_after": {
+          "type": "number",
+          "minimum": 0
         }
       }
     },

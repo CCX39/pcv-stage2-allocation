@@ -2,9 +2,9 @@ Languages: English | [Chinese](final_solver_contract.zh-CN.md)
 
 # Final Solver Contract
 
-Status: Phase 1E implementation note.
+Status: Phase 1F implementation note.
 
-This document describes the typed `solve_stage2(...)` API added in Phase 1E. It assembles lookup cap resolution, `B_min_feasible`, lambda search, best-feasible candidate selection, and structured result serialization. It is still a low-complexity integer approximation framework, not an exact 0-1 MCKP solver.
+This document describes the typed `solve_stage2(...)` API updated through Phase 1F. It assembles lookup cap resolution, `B_min_feasible`, lambda search, best-feasible candidate selection, residual-budget local upgrade, and structured result serialization. It is still a low-complexity integer approximation framework, not an exact 0-1 MCKP solver.
 
 ## Inputs And Output
 
@@ -22,7 +22,7 @@ The API does not load JSON files, validate arbitrary dictionaries, write result 
 
 `INFEASIBLE_BUDGET` means lookup cap resolution succeeded, `B_min_feasible` was computed, and `budget_total_bytes < B_min_feasible`. The solver does not enter lambda search in this case.
 
-`SUCCESS` means lambda search recovered a budget-feasible fixed-lambda candidate and final result assembly rechecked all selected tiles against lookup cap and budget constraints.
+`SUCCESS` means lambda search recovered a budget-feasible fixed-lambda seed candidate, residual-budget local upgrade ran as a postprocess, and final result assembly rechecked all selected tiles against lookup cap and budget constraints.
 
 `NUMERICAL_ERROR` means `B_min_feasible <= budget_total_bytes`, but the current lambda search configuration did not recover a budget-feasible candidate. The result keeps the lambda trace for diagnosis.
 
@@ -30,7 +30,7 @@ The API does not load JSON files, validate arbitrary dictionaries, write result 
 
 `NO_ALLOWED_LEVEL` covers the case where lookup cap resolution leaves a tile with no usable quality level.
 
-`INVALID_INPUT` remains reserved for schema or typed-input validation boundaries. The Phase 1E API receives already constructed typed models and does not add a dict/JSON input interface.
+`INVALID_INPUT` remains reserved for schema or typed-input validation boundaries. The Phase 1F API receives already constructed typed models and does not add a dict/JSON input interface.
 
 `INTERNAL_CONSTRAINT_VIOLATION` is reserved for result assembly invariants that the solver can clearly detect.
 
@@ -43,7 +43,7 @@ For `SUCCESS`, the assembled result verifies:
 - total bytes do not exceed `budget_total_bytes`;
 - total bytes, net utility, spatial utility, and decode time agree with selected tiles.
 
-Current MVP spatial utility uses the existing model-layer default `g_distance = 1.0`. Phase 1E does not fit or introduce a new distance function.
+Current MVP spatial utility uses the existing model-layer default `g_distance = 1.0`. Phase 1F does not fit or introduce a new distance function.
 
 ## Lambda Trace In Result
 
@@ -57,11 +57,26 @@ lambda = 0 probe
 
 Each iteration records lambda, total bytes, total net utility, total decode time, budget feasibility, and selected levels. `best_feasible_iteration` points to the full trace step index.
 
+## Residual-Budget Local Upgrade
+
+For `SUCCESS`, local upgrade starts from `lambda_search.best_feasible_iteration`, meaning the best feasible candidate found by lambda search. It does not use the last trace point unless that point is also the best feasible candidate.
+
+The local upgrade step considers only target levels that are:
+
+- higher than the current level id;
+- still inside that tile's `allowed_levels`;
+- positive in added bytes;
+- positive in added net utility;
+- affordable within the current residual budget.
+
+At each step, the candidate with the largest `delta_net_utility / delta_r_bytes` is applied. Exact gain ties are resolved by ascending `(tile_id, target_level_id)`. After each applied upgrade, residual budget and candidates are recomputed.
+
+`local_upgrade.steps[]` records the postprocess audit trail. These steps are not written into `lambda_search.iterations[]`, and they do not alter the lambda trace. Final `selected_tiles` and aggregate totals reflect the upgraded result.
+
 ## Scope Boundary
 
-Phase 1E does not implement:
+Phase 1F does not implement:
 
-- local upgrade;
 - exact or exhaustive MCKP solving;
 - baseline algorithms;
 - Longdress input generation;
