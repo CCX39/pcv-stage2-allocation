@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段1C：自适应 lambda 括区间与 trace 契约**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型。这些阶段只建立文档、校验脚手架和模型层边界，不实现完整 Stage2 求解器。
+当前仓库处于**阶段1D：二分搜索与最佳可行 candidate 内核**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录。这些阶段只建立文档、校验脚手架、模型层和搜索内核边界，不实现完整 Stage2 求解器。
 
 ## Work1 结构
 
@@ -75,7 +75,7 @@ python -m pytest
 python scripts/validate_handcheck_fixtures.py
 ```
 
-模型层只是后续求解器的准备，不实现 `lambda` search、local upgrade、baseline 或 MCKP 求解。
+阶段1A模型层只是后续搜索内核的准备，不实现 local upgrade、baseline 或 MCKP 求解。
 
 当前 `Stage2Input v0.1` 尚不支持 target-aware lookup。lookup 中非空的 `target_id` 不能被当成 `tile_id` 使用。
 
@@ -91,13 +91,19 @@ net_utility_i,j - lambda_value * r_bytes_i,j
 
 该结果只是 fixed-lambda candidate，不是最终 Stage2 result。它记录总数据量、原始净效用、惩罚后得分，以及当前 candidate 是否满足输入预算。预算可行不能被解释为正式 `SUCCESS`，超预算也不能被解释为正式 `INFEASIBLE_BUDGET`。
 
-本阶段仍未实现 `lambda` 上界扩展、二分搜索、最佳可行解记录、local upgrade、baseline 或最终求解器组装。
+阶段1B的固定 `lambda` 组件本身不执行 `lambda` 上界扩展、二分搜索、最佳可行解记录、local upgrade、baseline 或最终求解器组装。
 
 ## 阶段1C Lambda 括区间 Trace 内核
 
 阶段1C新增 `bracket_lambda_for_feasible_candidate(...)`，先评估 `lambda = 0`，再持续加倍正 `lambda`，直到找到第一个预算可行 fixed-lambda candidate，或用完 `lambda_max_bracket_steps`。
 
-bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 probe 的 `lambda`、总数据量、原始净效用、总解码耗时、预算可行性和选档结果。本阶段仍未实现二分搜索、最佳可行 candidate 排序、local upgrade、最终 `solve_stage2`，也不组装最终 `SUCCESS` / `INFEASIBLE_BUDGET`。
+bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 probe 的 `lambda`、总数据量、原始净效用、总解码耗时、预算可行性和选档结果。括区间组件本身不执行二分搜索、最佳可行 candidate 排序、local upgrade、最终 `solve_stage2`，也不组装最终 `SUCCESS` / `INFEASIBLE_BUDGET`。
+
+## 阶段1D Lambda 二分搜索内核
+
+阶段1D新增 `search_lambda_feasible_candidates(...)`。它复用 bracket helper，在一个已知超预算的 lower lambda 和一个已知预算可行的 upper lambda 之间做二分搜索。完整 trace 会连续累积零 `lambda` probe、正 `lambda` bracket probe 和二分 midpoint probe，`step_index` 不会在阶段切换时重置。
+
+搜索结果会按 D0-3 顺序记录当前最佳预算可行 fixed-lambda candidate：先比较总净效用，再在 `score_epsilon` 内近似相同时比较预算利用率，再比较总解码耗时，最后按排序后的 `(tile_id, selected_level_id)` 序列确定性决胜。该结果仍是搜索内核结果，不是最终 Stage2 result，也不能声称为原始 0-1 MCKP 的严格全局最优解。
 
 ## 当前目录结构
 
@@ -119,7 +125,9 @@ pcv-stage2-allocation/
 │  ├─ fixed_lambda_selection_contract.md
 │  ├─ fixed_lambda_selection_contract.zh-CN.md
 │  ├─ lambda_bracketing_contract.md
-│  └─ lambda_bracketing_contract.zh-CN.md
+│  ├─ lambda_bracketing_contract.zh-CN.md
+│  ├─ lambda_bisection_contract.md
+│  └─ lambda_bisection_contract.zh-CN.md
 ├─ schemas/
 │  ├─ stage2_input.schema.json
 │  ├─ distance_lookup.schema.json
@@ -131,6 +139,7 @@ pcv-stage2-allocation/
 ├─ tests/
 │  ├─ test_models_handcheck.py
 │  ├─ test_lambda_bracketing.py
+│  ├─ test_lambda_bisection.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -163,6 +172,7 @@ pcv-stage2-allocation/
 - [当前实现状态](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)：当前阶段、决策状态、已有资产和下一步建议的快速接手说明。
 - [固定 Lambda 选档契约](docs/fixed_lambda_selection_contract.zh-CN.md)：固定 `lambda` candidate 规则、平局处理和求解器边界。
 - [Lambda 括区间契约](docs/lambda_bracketing_contract.zh-CN.md)：自适应上界括区间、trace 字段和求解器边界。
+- [Lambda 二分搜索契约](docs/lambda_bisection_contract.zh-CN.md)：二分 trace 累积、最佳可行 candidate 排序和求解器边界。
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
 - [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
 - [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
@@ -179,8 +189,9 @@ pcv-stage2-allocation/
 本仓库当前没有：
 
 - Stage2 求解器；
-- 二分搜索和完整 `lambda` search；
-- 最佳可行 candidate 排序；
+- 最终 `solve_stage2` API；
+- 最终 `SUCCESS` / `INFEASIBLE_BUDGET` result 组装；
+- JSON result 序列化器；
 - local upgrade；
 - 通用 JSON 校验器；
 - fixture 生成器；
@@ -192,4 +203,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段1C经人工审查后，下一步建议规划二分搜索内核和最终求解器组装边界。二分搜索、最佳可行 candidate 排序、local upgrade、实验和播放器集成仍不属于当前范围。
+阶段1D经人工审查后，下一步建议规划最终 `solve_stage2` API 和 result 组装边界。local upgrade、精确 MCKP 求解、baseline、实验和播放器集成仍不属于当前范围。

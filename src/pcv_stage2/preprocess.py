@@ -6,8 +6,9 @@ from .models import (
     DistanceLookup,
     FixedLambdaSelection,
     FixedLambdaTileSelection,
-    LambdaBracketConfig,
     LambdaBracketResult,
+    LambdaSearchConfig,
+    LambdaSearchResult,
     LambdaSelectedLevel,
     LambdaTracePoint,
     LookupResolution,
@@ -115,7 +116,12 @@ def compute_b_min_feasible(stage2_input: Stage2Input, lookup: DistanceLookup) ->
 
 
 def _require_finite_non_negative(value: float, name: str) -> None:
-    if not math.isfinite(value) or value < 0:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < 0
+    ):
         raise PreprocessError(f"{name} must be finite and non-negative, got {value!r}")
 
 
@@ -234,10 +240,61 @@ def _trace_point_from_fixed_lambda(
     )
 
 
+def _candidate_total_decode_ms(candidate: FixedLambdaSelection) -> float:
+    return sum(selection.selected_d_ms for selection in candidate.tile_selections)
+
+
+def _candidate_budget_utilization(candidate: FixedLambdaSelection) -> float:
+    if candidate.budget_total_bytes <= 0:
+        return 0.0
+    return candidate.total_bytes / candidate.budget_total_bytes
+
+
+def _candidate_selection_key(candidate: FixedLambdaSelection) -> tuple[tuple[str, int], ...]:
+    return tuple(
+        (selection.tile_id, selection.selected_level_id)
+        for selection in sorted(
+            candidate.tile_selections,
+            key=lambda selection: selection.tile_id,
+        )
+    )
+
+
+def is_better_feasible_candidate(
+    candidate: FixedLambdaSelection,
+    incumbent: FixedLambdaSelection,
+    *,
+    score_epsilon: float,
+) -> bool:
+    if not candidate.is_budget_feasible or not incumbent.is_budget_feasible:
+        raise ValueError("best-feasible comparison requires budget-feasible candidates")
+
+    if candidate.total_net_utility > incumbent.total_net_utility + score_epsilon:
+        return True
+    if incumbent.total_net_utility > candidate.total_net_utility + score_epsilon:
+        return False
+
+    candidate_utilization = _candidate_budget_utilization(candidate)
+    incumbent_utilization = _candidate_budget_utilization(incumbent)
+    if candidate_utilization > incumbent_utilization + score_epsilon:
+        return True
+    if incumbent_utilization > candidate_utilization + score_epsilon:
+        return False
+
+    candidate_decode_ms = _candidate_total_decode_ms(candidate)
+    incumbent_decode_ms = _candidate_total_decode_ms(incumbent)
+    if candidate_decode_ms < incumbent_decode_ms - score_epsilon:
+        return True
+    if incumbent_decode_ms < candidate_decode_ms - score_epsilon:
+        return False
+
+    return _candidate_selection_key(candidate) < _candidate_selection_key(incumbent)
+
+
 def bracket_lambda_for_feasible_candidate(
     stage2_input: Stage2Input,
     lookup: DistanceLookup,
-    config: LambdaBracketConfig,
+    config: LambdaSearchConfig,
 ) -> LambdaBracketResult:
     b_min_feasible = compute_b_min_feasible(stage2_input, lookup)
     if stage2_input.budget_total_bytes < b_min_feasible:
@@ -296,5 +353,96 @@ def bracket_lambda_for_feasible_candidate(
         lower_infeasible_lambda=lower_infeasible_lambda,
         upper_feasible_lambda=None,
         feasible_candidate=None,
+        trace=tuple(trace),
+    )
+
+
+def search_lambda_feasible_candidates(
+    stage2_input: Stage2Input,
+    lookup: DistanceLookup,
+    config: LambdaSearchConfig,
+) -> LambdaSearchResult:
+    bracket = bracket_lambda_for_feasible_candidate(stage2_input, lookup, config)
+    trace = list(bracket.trace)
+
+    if bracket.feasible_at_zero:
+        return LambdaSearchResult(
+            bracket_found=True,
+            feasible_at_zero=True,
+            bisection_performed=False,
+            termination_reason="feasible_at_zero",
+            lower_infeasible_lambda=None,
+            upper_feasible_lambda=0.0,
+            best_feasible_candidate=bracket.feasible_candidate,
+            best_feasible_trace_index=0,
+            trace=tuple(trace),
+        )
+
+    if not bracket.bracket_found:
+        return LambdaSearchResult(
+            bracket_found=False,
+            feasible_at_zero=False,
+            bisection_performed=False,
+            termination_reason="bracket_failure",
+            lower_infeasible_lambda=bracket.lower_infeasible_lambda,
+            upper_feasible_lambda=None,
+            best_feasible_candidate=None,
+            best_feasible_trace_index=None,
+            trace=tuple(trace),
+        )
+
+    assert bracket.lower_infeasible_lambda is not None
+    assert bracket.upper_feasible_lambda is not None
+    assert bracket.feasible_candidate is not None
+
+    lambda_low = bracket.lower_infeasible_lambda
+    lambda_high = bracket.upper_feasible_lambda
+    best_feasible_candidate = bracket.feasible_candidate
+    best_feasible_trace_index = len(trace) - 1
+    bisection_performed = False
+    termination_reason = "max_iterations"
+
+    for _ in range(config.max_iterations):
+        if lambda_high - lambda_low <= config.lambda_epsilon:
+            termination_reason = "lambda_epsilon"
+            break
+
+        lambda_mid = (lambda_low + lambda_high) / 2
+        if lambda_mid == lambda_low or lambda_mid == lambda_high:
+            termination_reason = "floating_point_stall"
+            break
+
+        candidate = select_fixed_lambda(
+            stage2_input,
+            lookup,
+            lambda_value=lambda_mid,
+            score_epsilon=config.score_epsilon,
+        )
+        trace.append(_trace_point_from_fixed_lambda(len(trace), candidate))
+        bisection_performed = True
+
+        if candidate.is_budget_feasible:
+            if is_better_feasible_candidate(
+                candidate,
+                best_feasible_candidate,
+                score_epsilon=config.score_epsilon,
+            ):
+                best_feasible_candidate = candidate
+                best_feasible_trace_index = len(trace) - 1
+            lambda_high = lambda_mid
+        else:
+            lambda_low = lambda_mid
+    else:
+        termination_reason = "max_iterations"
+
+    return LambdaSearchResult(
+        bracket_found=True,
+        feasible_at_zero=False,
+        bisection_performed=bisection_performed,
+        termination_reason=termination_reason,
+        lower_infeasible_lambda=lambda_low,
+        upper_feasible_lambda=lambda_high,
+        best_feasible_candidate=best_feasible_candidate,
+        best_feasible_trace_index=best_feasible_trace_index,
         trace=tuple(trace),
     )

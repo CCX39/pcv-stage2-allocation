@@ -4,7 +4,7 @@ Languages: English | [Chinese](lambda_bracketing_contract.zh-CN.md)
 
 Status: Phase 1C implementation note.
 
-This document describes the adaptive lambda upper-bound bracketing kernel added in Phase 1C. It prepares trace data for a later bisection search. It is not the complete Stage2 solver.
+This document describes the adaptive lambda upper-bound bracketing kernel added in Phase 1C. The bracketing component prepares the low/high search interval and trace data consumed by the Phase 1D bisection kernel. It is not the complete Stage2 solver.
 
 ## Input Premise
 
@@ -18,6 +18,8 @@ the bracketing helper raises a controlled preprocessing error. The future final 
 
 ## Probe Order
 
+The current implementation uses the shared `LambdaSearchConfig`. Bracketing consumes `lambda_initial_high`, `lambda_max_bracket_steps`, and `score_epsilon`; the bisection fields are carried by the same explicit configuration object so callers do not maintain two similar config models.
+
 The kernel always evaluates `lambda = 0` first.
 
 If the zero-lambda candidate is already budget-feasible, the result is marked `feasible_at_zero` and no positive lambda probe is executed.
@@ -28,7 +30,7 @@ If the zero-lambda candidate exceeds budget, probing starts at `lambda_initial_h
 lambda <- 2 * lambda
 ```
 
-`lambda_max_bracket_steps` means the maximum number of positive lambda values to try. It does not count the mandatory zero-lambda probe.
+`lambda_max_bracket_steps` means the maximum number of positive lambda values to try. It does not count the mandatory zero-lambda probe. A value of `0` means no positive bracket probe is attempted after the zero-lambda probe.
 
 ## Result Cases
 
@@ -54,7 +56,7 @@ All trace values come from the fixed-lambda candidate returned by `select_fixed_
 
 ## Scope Boundary
 
-Phase 1C does not implement:
+The bracketing component does not implement:
 
 - bisection search;
 - best feasible candidate ranking;

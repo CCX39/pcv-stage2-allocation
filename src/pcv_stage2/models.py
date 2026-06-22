@@ -219,11 +219,17 @@ class FixedLambdaSelection:
             raise ValueError("fixed-lambda selection must contain at least one tile")
 
 
+def _is_non_negative_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
 @dataclass(frozen=True)
-class LambdaBracketConfig:
+class LambdaSearchConfig:
     lambda_initial_high: float
     lambda_max_bracket_steps: int
     score_epsilon: float
+    lambda_epsilon: float
+    max_iterations: int
 
     def __post_init__(self) -> None:
         if (
@@ -235,13 +241,9 @@ class LambdaBracketConfig:
                 "lambda_initial_high must be finite and positive, "
                 f"got {self.lambda_initial_high!r}"
             )
-        if (
-            isinstance(self.lambda_max_bracket_steps, bool)
-            or not isinstance(self.lambda_max_bracket_steps, int)
-            or self.lambda_max_bracket_steps <= 0
-        ):
+        if not _is_non_negative_int(self.lambda_max_bracket_steps):
             raise ValueError(
-                "lambda_max_bracket_steps must be a positive integer, "
+                "lambda_max_bracket_steps must be a non-negative integer, "
                 f"got {self.lambda_max_bracket_steps!r}"
             )
         if (
@@ -252,6 +254,20 @@ class LambdaBracketConfig:
             raise ValueError(
                 "score_epsilon must be finite and non-negative, "
                 f"got {self.score_epsilon!r}"
+            )
+        if (
+            not _is_real_number(self.lambda_epsilon)
+            or not math.isfinite(self.lambda_epsilon)
+            or self.lambda_epsilon < 0
+        ):
+            raise ValueError(
+                "lambda_epsilon must be finite and non-negative, "
+                f"got {self.lambda_epsilon!r}"
+            )
+        if not _is_non_negative_int(self.max_iterations):
+            raise ValueError(
+                "max_iterations must be a non-negative integer, "
+                f"got {self.max_iterations!r}"
             )
 
 
@@ -317,3 +333,51 @@ class LambdaBracketResult:
             raise ValueError("successful bracket result must include feasible_candidate")
         if not self.bracket_found and self.feasible_candidate is not None:
             raise ValueError("failed bracket result must not include feasible_candidate")
+
+
+@dataclass(frozen=True)
+class LambdaSearchResult:
+    bracket_found: bool
+    feasible_at_zero: bool
+    bisection_performed: bool
+    termination_reason: str
+    lower_infeasible_lambda: float | None
+    upper_feasible_lambda: float | None
+    best_feasible_candidate: FixedLambdaSelection | None
+    best_feasible_trace_index: int | None
+    trace: tuple[LambdaTracePoint, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "trace", _as_tuple(self.trace))
+        allowed_reasons = {
+            "feasible_at_zero",
+            "lambda_epsilon",
+            "max_iterations",
+            "bracket_failure",
+            "floating_point_stall",
+        }
+        if self.termination_reason not in allowed_reasons:
+            raise ValueError(f"unknown termination_reason {self.termination_reason!r}")
+        if not self.trace:
+            raise ValueError("lambda search result must contain at least one trace point")
+        step_indices = [point.step_index for point in self.trace]
+        expected = list(range(len(self.trace)))
+        if step_indices != expected:
+            raise ValueError(
+                f"trace step_index values must be consecutive: expected {expected}, "
+                f"got {step_indices}"
+            )
+        if (self.best_feasible_candidate is None) != (
+            self.best_feasible_trace_index is None
+        ):
+            raise ValueError(
+                "best_feasible_candidate and best_feasible_trace_index must both "
+                "be present or both be null"
+            )
+        if self.best_feasible_trace_index is not None:
+            if not 0 <= self.best_feasible_trace_index < len(self.trace):
+                raise ValueError(
+                    "best_feasible_trace_index must point inside the search trace"
+                )
+            if not self.trace[self.best_feasible_trace_index].is_budget_feasible:
+                raise ValueError("best feasible trace point must be budget feasible")

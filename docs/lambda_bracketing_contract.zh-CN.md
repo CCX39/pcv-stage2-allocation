@@ -4,7 +4,7 @@
 
 状态：阶段1C实现说明。
 
-本文说明阶段1C新增的自适应 `lambda` 上界括区间内核。它为后续二分搜索准备搜索轨迹数据，不是完整 Stage2 求解器。
+本文说明阶段1C新增的自适应 `lambda` 上界括区间内核。bracketing 组件为阶段1D二分搜索内核准备 low/high 搜索区间和 trace 数据，不是完整 Stage2 求解器。
 
 ## 输入前提
 
@@ -18,6 +18,8 @@ bracketing helper 会抛出受控的预处理错误。未来最终 `solve_stage2
 
 ## Probe 顺序
 
+当前实现使用统一的 `LambdaSearchConfig`。bracketing 会使用其中的 `lambda_initial_high`、`lambda_max_bracket_steps` 和 `score_epsilon`；二分相关字段也放在同一个显式配置对象中，避免调用方维护两套含义相近的配置模型。
+
 内核总是先评估 `lambda = 0`。
 
 如果零 `lambda` candidate 已经满足预算，则结果标记为 `feasible_at_zero`，不再执行正 `lambda` probe。
@@ -28,7 +30,7 @@ bracketing helper 会抛出受控的预处理错误。未来最终 `solve_stage2
 lambda <- 2 * lambda
 ```
 
-`lambda_max_bracket_steps` 表示最多尝试多少个正 `lambda` 值，不包含必做的零 `lambda` probe。
+`lambda_max_bracket_steps` 表示最多尝试多少个正 `lambda` 值，不包含必做的零 `lambda` probe。取值为 `0` 表示零 `lambda` probe 之后不再尝试正 `lambda` bracket probe。
 
 ## 结果类型
 
@@ -54,7 +56,7 @@ lambda <- 2 * lambda
 
 ## 范围边界
 
-阶段1C没有实现：
+bracketing 组件本身不实现：
 
 - 二分搜索；
 - 最佳可行 candidate 排序；

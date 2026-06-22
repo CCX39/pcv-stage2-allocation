@@ -13,7 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from pcv_stage2.io import load_distance_lookup, load_stage2_input
-from pcv_stage2.models import LambdaBracketConfig
+from pcv_stage2.models import LambdaSearchConfig
 from pcv_stage2.preprocess import (
     PreprocessError,
     bracket_lambda_for_feasible_candidate,
@@ -21,6 +21,23 @@ from pcv_stage2.preprocess import (
 
 
 FIXTURE = ROOT / "tests" / "fixtures" / "handcheck_3x3"
+
+
+def search_config(
+    *,
+    lambda_initial_high: float = 0.1,
+    lambda_max_bracket_steps: int = 2,
+    score_epsilon: float = 1e-9,
+    lambda_epsilon: float = 0.0,
+    max_iterations: int = 0,
+) -> LambdaSearchConfig:
+    return LambdaSearchConfig(
+        lambda_initial_high=lambda_initial_high,
+        lambda_max_bracket_steps=lambda_max_bracket_steps,
+        score_epsilon=score_epsilon,
+        lambda_epsilon=lambda_epsilon,
+        max_iterations=max_iterations,
+    )
 
 
 def selected_level_pairs(trace_point):
@@ -34,11 +51,7 @@ def test_handcheck_bracket_finds_first_feasible_positive_lambda() -> None:
     # Synthetic handcheck data, not real Longdress experiment output.
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    config = LambdaBracketConfig(
-        lambda_initial_high=0.1,
-        lambda_max_bracket_steps=2,
-        score_epsilon=1e-9,
-    )
+    config = search_config()
 
     result = bracket_lambda_for_feasible_candidate(stage2_input, lookup, config)
 
@@ -83,11 +96,7 @@ def test_handcheck_bracket_stops_when_zero_lambda_is_feasible() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     stage2_input = replace(stage2_input, budget_total_bytes=240.0)
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    config = LambdaBracketConfig(
-        lambda_initial_high=0.1,
-        lambda_max_bracket_steps=2,
-        score_epsilon=1e-9,
-    )
+    config = search_config()
 
     result = bracket_lambda_for_feasible_candidate(stage2_input, lookup, config)
 
@@ -105,11 +114,7 @@ def test_handcheck_bracket_stops_when_zero_lambda_is_feasible() -> None:
 def test_handcheck_bracket_failure_does_not_fabricate_feasible_candidate() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    config = LambdaBracketConfig(
-        lambda_initial_high=0.1,
-        lambda_max_bracket_steps=1,
-        score_epsilon=1e-9,
-    )
+    config = search_config(lambda_max_bracket_steps=1)
 
     result = bracket_lambda_for_feasible_candidate(stage2_input, lookup, config)
 
@@ -125,11 +130,7 @@ def test_handcheck_bracket_failure_does_not_fabricate_feasible_candidate() -> No
 def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_infeasible.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    config = LambdaBracketConfig(
-        lambda_initial_high=0.1,
-        lambda_max_bracket_steps=2,
-        score_epsilon=1e-9,
-    )
+    config = search_config()
 
     with pytest.raises(
         PreprocessError,
@@ -146,6 +147,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.0,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_initial_high",
         ),
@@ -154,6 +157,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": math.nan,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_initial_high",
         ),
@@ -162,6 +167,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": math.inf,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_initial_high",
         ),
@@ -170,14 +177,18 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": True,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_initial_high",
         ),
         (
             {
                 "lambda_initial_high": 0.1,
-                "lambda_max_bracket_steps": 0,
+                "lambda_max_bracket_steps": -1,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_max_bracket_steps",
         ),
@@ -186,6 +197,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": 1.5,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_max_bracket_steps",
         ),
@@ -194,6 +207,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": True,
                 "score_epsilon": 1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "lambda_max_bracket_steps",
         ),
@@ -202,6 +217,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": -1e-9,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "score_epsilon",
         ),
@@ -210,6 +227,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": math.nan,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "score_epsilon",
         ),
@@ -218,6 +237,8 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": math.inf,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "score_epsilon",
         ),
@@ -226,14 +247,16 @@ def test_infeasible_budget_input_is_rejected_before_bracketing() -> None:
                 "lambda_initial_high": 0.1,
                 "lambda_max_bracket_steps": 2,
                 "score_epsilon": True,
+                "lambda_epsilon": 0.0,
+                "max_iterations": 0,
             },
             "score_epsilon",
         ),
     ],
 )
-def test_lambda_bracket_config_rejects_invalid_values(kwargs, expected: str) -> None:
+def test_lambda_search_config_rejects_invalid_bracket_values(kwargs, expected: str) -> None:
     with pytest.raises(ValueError, match=expected):
-        LambdaBracketConfig(**kwargs)
+        LambdaSearchConfig(**kwargs)
 
 
 def test_handcheck_trace_total_bytes_do_not_increase_with_lambda() -> None:
@@ -241,11 +264,7 @@ def test_handcheck_trace_total_bytes_do_not_increase_with_lambda() -> None:
     # over arbitrary future inputs.
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    config = LambdaBracketConfig(
-        lambda_initial_high=0.1,
-        lambda_max_bracket_steps=2,
-        score_epsilon=1e-9,
-    )
+    config = search_config()
 
     result = bracket_lambda_for_feasible_candidate(stage2_input, lookup, config)
     total_bytes = [point.total_bytes for point in result.trace]
