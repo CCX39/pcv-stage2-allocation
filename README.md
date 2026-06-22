@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 1D: bisection search and best-feasible candidate kernel**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking. These phases create documentation, validation scaffolding, and model-layer/search-kernel boundaries only. They do not implement the complete Stage2 solver.
+This repository is currently at **Phase 1E: final solver API and structured result assembly**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly. This is a low-complexity approximation path for Stage2 allocation, not an exact 0-1 MCKP solver.
 
 ## Work1 Structure
 
@@ -105,6 +105,14 @@ Phase 1D adds `search_lambda_feasible_candidates(...)`, which reuses the bracket
 
 The search result records a best feasible fixed-lambda candidate using the D0-3 order: higher total net utility first, then higher budget utilization within `score_epsilon`, then lower total decode time, then a deterministic sorted `(tile_id, selected_level_id)` sequence. This is still a search-kernel result, not a final Stage2 result or a proof of exact 0-1 MCKP optimality.
 
+## Phase 1E Structured Solver Result
+
+Phase 1E adds `solve_stage2(stage2_input, lookup, config)`. It first resolves lookup cap candidates and computes `B_min_feasible`; if the budget is below that floor, it returns structured `INFEASIBLE_BUDGET` without entering lambda search.
+
+For budget-feasible inputs, it runs the Phase 1D lambda search and assembles a `Stage2SolveResult`. `Stage2SolveResult.to_dict()` returns a JSON-compatible payload that validates against `schemas/stage2_result.schema.json`. The result includes selected tiles, lookup resolution, lambda trace, config snapshot, runtime, warnings, and errors.
+
+This phase still does not implement local upgrade, exact MCKP solving, baselines, Longdress input generation, batch experiments, plotting, player integration, Stage1 online integration, or a JSON file output CLI.
+
 ## Current Structure
 
 ```text
@@ -127,7 +135,9 @@ pcv-stage2-allocation/
 │  ├─ lambda_bracketing_contract.md
 │  ├─ lambda_bracketing_contract.zh-CN.md
 │  ├─ lambda_bisection_contract.md
-│  └─ lambda_bisection_contract.zh-CN.md
+│  ├─ lambda_bisection_contract.zh-CN.md
+│  ├─ final_solver_contract.md
+│  └─ final_solver_contract.zh-CN.md
 ├─ schemas/
 │  ├─ stage2_input.schema.json
 │  ├─ distance_lookup.schema.json
@@ -140,6 +150,7 @@ pcv-stage2-allocation/
 │  ├─ test_models_handcheck.py
 │  ├─ test_lambda_bracketing.py
 │  ├─ test_lambda_bisection.py
+│  ├─ test_solver_result.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -155,6 +166,7 @@ pcv-stage2-allocation/
 │  │  ├─ __init__.py
 │  │  ├─ models.py
 │  │  ├─ preprocess.py
+│  │  ├─ solver.py
 │  │  └─ io.py
 │  └─ .gitkeep
 ├─ scripts/
@@ -173,6 +185,7 @@ pcv-stage2-allocation/
 - [Fixed-Lambda Selection Contract](docs/fixed_lambda_selection_contract.md): local fixed-lambda candidate rule, tie-breaking, and solver boundary.
 - [Lambda Bracketing Contract](docs/lambda_bracketing_contract.md): adaptive upper-bound bracketing, trace fields, and solver boundary.
 - [Lambda Bisection Contract](docs/lambda_bisection_contract.md): bisection trace accumulation, best-feasible candidate ranking, and solver boundary.
+- [Final Solver Contract](docs/final_solver_contract.md): typed `solve_stage2(...)` API, structured result assembly, status mapping, and current solver boundary.
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and resolved MVP decision defaults.
 - [Schema Contract](docs/schema_contract.md): explains the Stage2 input, distance lookup, and result Schema drafts.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
@@ -182,6 +195,7 @@ pcv-stage2-allocation/
 - [Chinese Fixed-Lambda Selection Contract](docs/fixed_lambda_selection_contract.zh-CN.md)
 - [Chinese Lambda Bracketing Contract](docs/lambda_bracketing_contract.zh-CN.md)
 - [Chinese Lambda Bisection Contract](docs/lambda_bisection_contract.zh-CN.md)
+- [Chinese Final Solver Contract](docs/final_solver_contract.zh-CN.md)
 - [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
 - [中文 Schema 契约](docs/schema_contract.zh-CN.md)
 - [中文决策记录](docs/decision_log.zh-CN.md)
@@ -191,11 +205,12 @@ pcv-stage2-allocation/
 
 This repository currently has no:
 
-- Stage2 solver;
-- final `solve_stage2` API;
-- final `SUCCESS` / `INFEASIBLE_BUDGET` result assembly;
-- JSON result serializer;
 - local upgrade;
+- exact or exhaustive MCKP solver;
+- baseline algorithms;
+- Longdress input generator;
+- batch experiment runner;
+- plotting;
 - general-purpose JSON validator;
 - fixture generator;
 - formal experiment result;
@@ -206,4 +221,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 1D is reviewed, the next suggested step is to plan the final `solve_stage2` API and result assembly boundary. Local upgrade, exact MCKP solving, baselines, experiments, and player integration remain outside the current scope.
+After Phase 1E is reviewed, the next suggested step is to plan either local-upgrade boundaries or a small result-inspection workflow. Exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.

@@ -15,7 +15,10 @@ from .models import (
     LookupResolution,
     LookupRule,
     QualityLevel,
+    Stage2Message,
     Stage2Input,
+    Stage2SelectedTile,
+    Stage2SolveResult,
     Tile,
 )
 from .preprocess import (
@@ -30,6 +33,7 @@ from .preprocess import (
     search_lambda_feasible_candidates,
     select_fixed_lambda,
 )
+from .solver import solve_stage2
 
 __all__ = [
     "DistanceLookup",
@@ -45,7 +49,10 @@ __all__ = [
     "LookupResolution",
     "LookupRule",
     "QualityLevel",
+    "Stage2Message",
     "Stage2Input",
+    "Stage2SelectedTile",
+    "Stage2SolveResult",
     "Tile",
     "bracket_lambda_for_feasible_candidate",
     "compute_b_min_feasible",
@@ -59,4 +66,5 @@ __all__ = [
     "resolve_lookup_for_input",
     "search_lambda_feasible_candidates",
     "select_fixed_lambda",
+    "solve_stage2",
 ]

@@ -22,6 +22,17 @@ from .models import (
 class PreprocessError(ValueError):
     """Raised when Stage2 preprocessing cannot resolve lookup or candidates."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "INVALID_LOOKUP",
+        details: dict[str, object] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.details = details or {}
+
 
 def _rule_applies_to_tile(tile: Tile, rule: LookupRule) -> bool:
     return rule.view_context == tile.view_context and rule.distance_match.matches(
@@ -39,14 +50,26 @@ def match_lookup_rule(tile: Tile, lookup: DistanceLookup) -> LookupRule:
             "Stage2Input v0.1 does not provide the context required for "
             "target-aware lookup rules. Refusing lookup rule(s) "
             f"{rule_ids} with target_id value(s) {target_ids}; target_id must "
-            "not be treated as tile_id."
+            "not be treated as tile_id.",
+            code="INVALID_LOOKUP",
+            details={
+                "tile_id": tile.tile_id,
+                "rule_ids": [rule.rule_id for rule in target_aware_matches],
+                "target_ids": [rule.target_id for rule in target_aware_matches],
+            },
         )
 
     matches = [rule for rule in matches if rule.target_id is None]
     if len(matches) != 1:
         raise PreprocessError(
             f"{tile.tile_id} must match exactly one lookup rule in "
-            f"{lookup.lookup_profile_id}, got {len(matches)}"
+            f"{lookup.lookup_profile_id}, got {len(matches)}",
+            code="INVALID_LOOKUP",
+            details={
+                "tile_id": tile.tile_id,
+                "lookup_profile_id": lookup.lookup_profile_id,
+                "match_count": len(matches),
+            },
         )
     return matches[0]
 
@@ -55,7 +78,12 @@ def resolve_allowed_levels(tile: Tile, lookup: DistanceLookup) -> LookupResoluti
     if lookup.semantics != "cap":
         raise PreprocessError(
             f"{lookup.lookup_profile_id} uses unsupported lookup semantics "
-            f"{lookup.semantics!r}; expected 'cap'"
+            f"{lookup.semantics!r}; expected 'cap'",
+            code="INVALID_LOOKUP",
+            details={
+                "lookup_profile_id": lookup.lookup_profile_id,
+                "semantics": lookup.semantics,
+            },
         )
 
     rule = match_lookup_rule(tile, lookup)
@@ -66,7 +94,16 @@ def resolve_allowed_levels(tile: Tile, lookup: DistanceLookup) -> LookupResoluti
     )
 
     if not allowed_levels:
-        raise PreprocessError(f"{tile.tile_id} has no allowed levels after lookup cap")
+        raise PreprocessError(
+            f"{tile.tile_id} has no allowed levels after lookup cap",
+            code="NO_ALLOWED_LEVEL",
+            details={
+                "tile_id": tile.tile_id,
+                "lookup_profile_id": lookup.lookup_profile_id,
+                "matched_rule_id": rule.rule_id,
+                "lookup_level": rule.lookup_level,
+            },
+        )
 
     return LookupResolution(
         tile_id=tile.tile_id,
@@ -83,7 +120,12 @@ def resolve_lookup_for_input(
     if stage2_input.lookup_profile_id != lookup.lookup_profile_id:
         raise PreprocessError(
             f"input references lookup_profile_id {stage2_input.lookup_profile_id!r}, "
-            f"but lookup file provides {lookup.lookup_profile_id!r}"
+            f"but lookup file provides {lookup.lookup_profile_id!r}",
+            code="INVALID_LOOKUP",
+            details={
+                "input_lookup_profile_id": stage2_input.lookup_profile_id,
+                "lookup_profile_id": lookup.lookup_profile_id,
+            },
         )
     return tuple(resolve_allowed_levels(tile, lookup) for tile in stage2_input.tiles)
 
@@ -122,7 +164,11 @@ def _require_finite_non_negative(value: float, name: str) -> None:
         or not math.isfinite(value)
         or value < 0
     ):
-        raise PreprocessError(f"{name} must be finite and non-negative, got {value!r}")
+        raise PreprocessError(
+            f"{name} must be finite and non-negative, got {value!r}",
+            code="INVALID_INPUT",
+            details={"parameter": name, "value": repr(value)},
+        )
 
 
 def _is_better_fixed_lambda_candidate(
@@ -300,7 +346,12 @@ def bracket_lambda_for_feasible_candidate(
     if stage2_input.budget_total_bytes < b_min_feasible:
         raise PreprocessError(
             "lambda bracketing requires a budget-feasible input; the final "
-            "solve_stage2 layer must map this condition to INFEASIBLE_BUDGET."
+            "solve_stage2 layer must map this condition to INFEASIBLE_BUDGET.",
+            code="INFEASIBLE_BUDGET",
+            details={
+                "budget_total_bytes": stage2_input.budget_total_bytes,
+                "b_min_feasible": b_min_feasible,
+            },
         )
 
     trace: list[LambdaTracePoint] = []

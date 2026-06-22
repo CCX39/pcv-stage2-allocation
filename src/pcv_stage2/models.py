@@ -223,6 +223,10 @@ def _is_non_negative_int(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
+def _float_close(left: float, right: float, epsilon: float = 1e-9) -> bool:
+    return abs(left - right) <= epsilon
+
+
 @dataclass(frozen=True)
 class LambdaSearchConfig:
     lambda_initial_high: float
@@ -379,5 +383,147 @@ class LambdaSearchResult:
                 raise ValueError(
                     "best_feasible_trace_index must point inside the search trace"
                 )
-            if not self.trace[self.best_feasible_trace_index].is_budget_feasible:
+            trace_point = self.trace[self.best_feasible_trace_index]
+            if not trace_point.is_budget_feasible:
                 raise ValueError("best feasible trace point must be budget feasible")
+            assert self.best_feasible_candidate is not None
+            candidate_decode_ms = sum(
+                selection.selected_d_ms
+                for selection in self.best_feasible_candidate.tile_selections
+            )
+            candidate_selected_levels = tuple(
+                LambdaSelectedLevel(
+                    tile_id=selection.tile_id,
+                    selected_level_id=selection.selected_level_id,
+                )
+                for selection in self.best_feasible_candidate.tile_selections
+            )
+            if not (
+                _float_close(
+                    trace_point.lambda_value,
+                    self.best_feasible_candidate.lambda_value,
+                )
+                and _float_close(
+                    trace_point.total_bytes,
+                    self.best_feasible_candidate.total_bytes,
+                )
+                and _float_close(
+                    trace_point.total_net_utility,
+                    self.best_feasible_candidate.total_net_utility,
+                )
+                and _float_close(trace_point.total_decode_ms, candidate_decode_ms)
+                and trace_point.selected_levels == candidate_selected_levels
+            ):
+                raise ValueError(
+                    "best_feasible_candidate must match the referenced trace point"
+                )
+
+
+def _json_compatible(value: Any) -> Any:
+    if isinstance(value, tuple | list):
+        return [_json_compatible(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _json_compatible(item) for key, item in value.items()}
+    return value
+
+
+@dataclass(frozen=True)
+class Stage2Message:
+    code: str
+    message: str
+    details: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        result = {
+            "code": self.code,
+            "message": self.message,
+        }
+        if self.details:
+            result["details"] = _json_compatible(self.details)
+        return result
+
+
+@dataclass(frozen=True)
+class Stage2SelectedTile:
+    tile_id: str
+    selected_level_id: int
+    r_bytes: float
+    d_ms: float
+    net_utility: float
+    spatial_utility: float
+    allowed_levels: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "allowed_levels", _as_tuple(self.allowed_levels))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "tile_id": self.tile_id,
+            "selected_level_id": self.selected_level_id,
+            "r_bytes": self.r_bytes,
+            "d_ms": self.d_ms,
+            "net_utility": self.net_utility,
+            "spatial_utility": self.spatial_utility,
+            "allowed_levels": list(self.allowed_levels),
+        }
+
+
+@dataclass(frozen=True)
+class Stage2SolveResult:
+    schema_version: str
+    scenario_id: str
+    status: str
+    budget_total_bytes: float
+    b_min_feasible: float | None
+    budget_gap: float | None
+    total_bytes: float | None
+    total_net_utility: float | None
+    total_spatial_utility: float | None
+    total_decode_ms: float | None
+    budget_utilization: float | None
+    selected_tiles: tuple[Stage2SelectedTile, ...]
+    lookup_resolution: tuple[LookupResolution, ...]
+    lambda_search: dict[str, Any]
+    runtime_ms: float | None
+    config_snapshot: dict[str, Any]
+    warnings: tuple[Stage2Message, ...] = ()
+    errors: tuple[Stage2Message, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "selected_tiles", _as_tuple(self.selected_tiles))
+        object.__setattr__(self, "lookup_resolution", _as_tuple(self.lookup_resolution))
+        object.__setattr__(self, "warnings", _as_tuple(self.warnings))
+        object.__setattr__(self, "errors", _as_tuple(self.errors))
+        if self.runtime_ms is not None and self.runtime_ms < 0:
+            raise ValueError("runtime_ms must be non-negative when present")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "scenario_id": self.scenario_id,
+            "status": self.status,
+            "budget_total_bytes": self.budget_total_bytes,
+            "b_min_feasible": self.b_min_feasible,
+            "budget_gap": self.budget_gap,
+            "total_bytes": self.total_bytes,
+            "total_net_utility": self.total_net_utility,
+            "total_spatial_utility": self.total_spatial_utility,
+            "total_decode_ms": self.total_decode_ms,
+            "budget_utilization": self.budget_utilization,
+            "selected_tiles": [item.to_dict() for item in self.selected_tiles],
+            "lookup_resolution": [
+                {
+                    "tile_id": item.tile_id,
+                    "lookup_profile_id": item.lookup_profile_id,
+                    "matched_rule_id": item.matched_rule_id,
+                    "lookup_level": item.lookup_level,
+                    "allowed_levels": list(item.allowed_levels),
+                }
+                for item in self.lookup_resolution
+            ],
+            "lambda_search": _json_compatible(self.lambda_search),
+            "runtime_ms": self.runtime_ms,
+            "config_snapshot": _json_compatible(self.config_snapshot),
+            "warnings": [item.to_dict() for item in self.warnings],
+            "errors": [item.to_dict() for item in self.errors],
+        }
