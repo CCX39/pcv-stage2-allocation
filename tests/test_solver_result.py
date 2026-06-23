@@ -28,7 +28,8 @@ from pcv_stage2.models import (
     Stage2Input,
     Tile,
 )
-from pcv_stage2.solver import solve_stage2
+from pcv_stage2 import solver as solver_module
+from pcv_stage2.solver import InternalSolverInvariantError, solve_stage2
 
 
 FIXTURE = ROOT / "tests" / "fixtures" / "handcheck_3x3"
@@ -304,6 +305,34 @@ def test_solver_bracket_failure_returns_numerical_error_with_trace() -> None:
     ]
     assert payload["errors"][0]["code"] == "LAMBDA_SEARCH_NO_FEASIBLE_CANDIDATE"
     assert "did not recover a budget-feasible candidate" in payload["errors"][0]["message"]
+
+    assert_schema_valid(payload)
+
+
+def test_solver_returns_structured_internal_violation_when_local_upgrade_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage2_input = load_stage2_input(FIXTURE / "input_success.json")
+    lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
+
+    def raise_invariant(*_args: object, **_kwargs: object) -> None:
+        raise InternalSolverInvariantError("synthetic test failure")
+
+    monkeypatch.setattr(solver_module, "_apply_local_upgrade", raise_invariant)
+
+    result = solve_stage2(stage2_input, lookup, search_config())
+    payload = result.to_dict()
+
+    assert payload["status"] == "INTERNAL_CONSTRAINT_VIOLATION"
+    assert payload["selected_tiles"] == []
+    assert payload["lambda_search"]["enabled"] is True
+    assert payload["lambda_search"]["iterations"]
+    assert payload["lambda_search"]["best_feasible_iteration"] is not None
+    assert payload["local_upgrade"]["enabled"] is False
+    assert payload["local_upgrade"]["steps"] == []
+    assert payload["local_upgrade"]["termination_reason"] == "NOT_RUN"
+    assert payload["errors"][0]["code"] == "RESULT_INVARIANT_VIOLATION"
+    assert "synthetic test failure" in payload["errors"][0]["message"]
 
     assert_schema_valid(payload)
 

@@ -40,6 +40,7 @@ e3022ed  feat: add fixed lambda selection kernel
 c0a0075  feat: add lambda bracketing trace kernel
 fb88ce4  feat: add lambda bisection search kernel
 0b3bf42  feat: add structured stage2 solver result
+b500cf2  feat: add residual-budget local upgrade
 ```
 
 ## 决策状态

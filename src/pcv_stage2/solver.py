@@ -592,6 +592,7 @@ def solve_stage2(
             ),
         )
 
+    local_upgrade = _disabled_local_upgrade()
     try:
         if search_result.best_feasible_trace_index is None:
             raise InternalSolverInvariantError(
