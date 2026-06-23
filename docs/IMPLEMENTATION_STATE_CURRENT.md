@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 1G handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1G so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 2A handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 2A so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,16 +13,16 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 1G: tests-only small-instance exhaustive oracle completed
+Phase 2A: calibration-informed proxy fixture completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 1H preparation: result inspection workflow or solver output documentation
+Phase 2B preparation: result inspection workflow or solver output documentation
 ```
 
-No runtime exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
+No real Longdress spatial tile input generator, runtime exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
 
 ## Key Commit History
 
@@ -41,6 +41,7 @@ c0a0075  feat: add lambda bracketing trace kernel
 fb88ce4  feat: add lambda bisection search kernel
 0b3bf42  feat: add structured stage2 solver result
 b500cf2  feat: add residual-budget local upgrade
+2ad27ff  test: add small-instance exhaustive oracle
 ```
 
 ## Decision State
@@ -63,6 +64,7 @@ D0-4 provenance vocabulary  DRAFT
 - `schemas/distance_lookup.schema.json`
 - `schemas/stage2_result.schema.json`
 - `tests/fixtures/handcheck_3x3/`
+- `tests/fixtures/calibration_informed_proxy/`
 - `scripts/validate_handcheck_fixtures.py`
 - `src/pcv_stage2/`
 - `tests/test_models_handcheck.py`
@@ -70,6 +72,7 @@ D0-4 provenance vocabulary  DRAFT
 - `tests/test_lambda_bisection.py`
 - `tests/test_solver_result.py`
 - `tests/test_exhaustive_oracle.py`
+- `tests/test_calibration_informed_proxy_fixture.py`
 - `tests/helpers/exhaustive_oracle.py`
 - `requirements.txt`
 - `src/pcv_stage2/solver.py`
@@ -81,6 +84,8 @@ D0-4 provenance vocabulary  DRAFT
 - `docs/lambda_bisection_contract.zh-CN.md`
 - `docs/final_solver_contract.md`
 - `docs/final_solver_contract.zh-CN.md`
+- `docs/calibration_informed_proxy_fixture.md`
+- `docs/calibration_informed_proxy_fixture.zh-CN.md`
 - `docs/stage2_mvp_contract.zh-CN.md`
 - `docs/schema_contract.zh-CN.md`
 - `docs/decision_log.zh-CN.md`
@@ -93,6 +98,13 @@ The `handcheck_3x3` fixture contains:
 - expected success result;
 - expected infeasible result;
 - bilingual hand-calculation notes.
+
+The `calibration_informed_proxy` fixture contains:
+
+- feasible proxy Stage2 input;
+- infeasible proxy Stage2 input;
+- Longdress full-body strict calibrated lookup support file;
+- mapping documentation in English and Chinese.
 
 ## Validation Command
 
@@ -148,6 +160,22 @@ Phase 1G adds `tests/helpers/exhaustive_oracle.py`, a small exhaustive oracle fo
 
 The oracle has a default `max_enumerated_combinations = 100_000` guard and raises `ValueError` when an input exceeds that test-only scale. It is not imported by `src/pcv_stage2/`, not called by `solve_stage2(...)`, not a CLI, not a public runtime API, and not a baseline for batch experiments or paper method descriptions.
 
+## Calibration-Informed Proxy Fixture
+
+Phase 2A adds `tests/fixtures/calibration_informed_proxy/`, a calibration-informed proxy fixture backed by Longdress full-body strict lookup caps from source run `20260602_161531_longdress_full10`.
+
+The calibrated lookup support points are:
+
+```text
+normalized distance 1.0 -> lookup cap 5
+normalized distance 3.0 -> lookup cap 3
+normalized distance 6.0 -> lookup cap 2
+```
+
+The paired Stage2 tile metadata is explicitly proxy: tile identity, saliency, visibility, screen area, byte scales, decode-time scales, `q_base`, `eta`, and budgets are not derived from actual Longdress spatial tiles. The fixture validates loader/schema compatibility, lookup cap resolution, feasible and infeasible solver paths, deterministic output, and a tests-only oracle upper-bound comparison.
+
+The mapping notes are `docs/calibration_informed_proxy_fixture.md` and `docs/calibration_informed_proxy_fixture.zh-CN.md`. They are reproducibility and provenance notes, not new algorithm contracts.
+
 ## Handcheck Fixture Core Results
 
 Success case:
@@ -174,6 +202,7 @@ status = INFEASIBLE_BUDGET
 - runtime exact or exhaustive MCKP solver;
 - baselines;
 - Longdress input generation;
+- real Longdress spatial tile input;
 - batch experiments;
 - charts and figures;
 - player integration.
@@ -181,10 +210,10 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into experiments without reviewing the local-upgrade audit and the small-instance oracle checks first. A reasonable next step is:
+Do not jump directly into experiments without reviewing the local-upgrade audit, small-instance oracle checks, and calibration-informed proxy fixture outputs first. A reasonable next step is:
 
 ```text
-Phase 1H: result inspection workflow or solver output documentation
+Phase 2B: result inspection workflow or solver output documentation
 ```
 
 This document only records suggestions. It does not start either phase.

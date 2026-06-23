@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段1G：tests-only 小规模 exhaustive oracle**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade；阶段1G在 `tests/` 下新增仅供测试使用的小规模 exhaustive oracle，用于 lookup cap 预处理后 tiny instance 的 exact reference。当前 runtime solver 仍是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
+当前仓库处于**阶段2A：calibration-informed proxy fixture**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade；阶段1G在 `tests/` 下新增仅供测试使用的小规模 exhaustive oracle，用于 lookup cap 预处理后 tiny instance 的 exact reference；阶段2A新增一组由 Longdress full-body strict lookup cap 支撑、但 tile metadata 明确为 proxy 的 calibration-informed proxy fixture。当前 runtime solver 仍是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
 
 ## Work1 结构
 
@@ -125,6 +125,12 @@ bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 pr
 
 该 oracle 不会被 `src/pcv_stage2/` 导入，不会被 `solve_stage2(...)` 调用，不提供 CLI 或公共 runtime API，也不是正式 baseline。它不得用于大规模输入、批量实验，或论文中对实时方法的算法描述。
 
+## 阶段2A Calibration-Informed Proxy Fixture
+
+阶段2A新增 `tests/fixtures/calibration_informed_proxy/`，这是一组 calibration-informed proxy fixture。lookup 文件使用 `20260602_161531_longdress_full10` 的 Longdress full-body strict 支持点：normalized distance `1.0 -> cap 5`、`3.0 -> cap 3`、`6.0 -> cap 2`，并保持 `semantics = cap` 和 `target_id = null`。
+
+配套 Stage2 输入中的 tile identity、显著性、可见性、屏幕面积、字节规模、解码耗时规模、`q_base`、`eta` 和预算均为 proxy。该 fixture 用于验证 loader/schema 兼容性、calibrated lookup cap 解析、可行与不可行 solver 路径、确定性输出，以及仅在测试中与 exhaustive oracle 比较。它不是真实 Longdress 空间切块输入，不是播放器集成，不是 Stage1 在线输出，也不是正式实验 baseline。
+
 ## 当前目录结构
 
 ```text
@@ -142,6 +148,8 @@ pcv-stage2-allocation/
 │  ├─ manual_review_checklist.zh-CN.md
 │  ├─ schema_contract.md
 │  ├─ schema_contract.zh-CN.md
+│  ├─ calibration_informed_proxy_fixture.md
+│  ├─ calibration_informed_proxy_fixture.zh-CN.md
 │  ├─ fixed_lambda_selection_contract.md
 │  ├─ fixed_lambda_selection_contract.zh-CN.md
 │  ├─ lambda_bracketing_contract.md
@@ -164,6 +172,7 @@ pcv-stage2-allocation/
 │  ├─ test_lambda_bisection.py
 │  ├─ test_solver_result.py
 │  ├─ test_exhaustive_oracle.py
+│  ├─ test_calibration_informed_proxy_fixture.py
 │  ├─ helpers/
 │  │  └─ exhaustive_oracle.py
 │  └─ fixtures/
@@ -175,6 +184,10 @@ pcv-stage2-allocation/
 │     │  ├─ expected_infeasible_result.json
 │     │  ├─ hand_calculation.md
 │     │  └─ hand_calculation.zh-CN.md
+│     ├─ calibration_informed_proxy/
+│     │  ├─ input_feasible.json
+│     │  ├─ input_infeasible.json
+│     │  └─ distance_lookup_fullbody_strict.json
 │     └─ .gitkeep
 ├─ src/
 │  ├─ pcv_stage2/
@@ -203,6 +216,7 @@ pcv-stage2-allocation/
 - [最终 Solver API 契约](docs/final_solver_contract.zh-CN.md)：typed `solve_stage2(...)` API、结构化 result 组装、状态映射和当前求解器边界。
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
 - [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
+- [Calibration-Informed Proxy Fixture 说明](docs/calibration_informed_proxy_fixture.zh-CN.md)：阶段2A calibration-informed proxy fixture 的映射说明、calibrated/proxy 边界和复现方式。
 - [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
 - [Manual Review Checklist](docs/manual_review_checklist.md)：供研究者本人审查阶段0A至阶段0C输出的检查问题。
 - [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md)：合成 3x3 fixture 的手算说明。
@@ -219,6 +233,7 @@ pcv-stage2-allocation/
 - runtime 精确或穷举 MCKP 求解器；
 - baseline 算法；
 - Longdress 输入生成器；
+- 真实 Longdress 空间切块 fixture；
 - 批量实验运行器；
 - 绘图；
 - 通用 JSON 校验器；
@@ -231,4 +246,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段1G经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。runtime 精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。
+阶段2A经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。runtime 精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。

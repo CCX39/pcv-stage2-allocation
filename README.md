@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 1G: tests-only small-instance exhaustive oracle**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly; Phase 1F adds residual-budget local upgrade after the lambda-search seed; Phase 1G adds a small exhaustive oracle under `tests/` for exact references on tiny preprocessed instances. The runtime Stage2 solver remains a low-complexity approximation path, not an exact 0-1 MCKP solver.
+This repository is currently at **Phase 2A: calibration-informed proxy fixture**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly; Phase 1F adds residual-budget local upgrade after the lambda-search seed; Phase 1G adds a small exhaustive oracle under `tests/` for exact references on tiny preprocessed instances; Phase 2A adds a calibration-informed proxy fixture backed by Longdress full-body strict lookup caps and proxy tile metadata. The runtime Stage2 solver remains a low-complexity approximation path, not an exact 0-1 MCKP solver.
 
 ## Work1 Structure
 
@@ -125,6 +125,12 @@ Phase 1G adds a small exhaustive oracle in `tests/helpers/` for test-only exact 
 
 This oracle is not imported by `src/pcv_stage2/`, not called by `solve_stage2(...)`, not exposed as a CLI or public runtime API, and not a formal baseline. It must not be used for large inputs, batch experiments, or paper descriptions of the real-time method.
 
+## Phase 2A Calibration-Informed Proxy Fixture
+
+Phase 2A adds `tests/fixtures/calibration_informed_proxy/`, a calibration-informed proxy fixture. Its lookup file uses the Longdress full-body strict support points from `20260602_161531_longdress_full10`: normalized distance `1.0 -> cap 5`, `3.0 -> cap 3`, and `6.0 -> cap 2`, with `semantics = cap` and `target_id = null`.
+
+The paired Stage2 inputs use proxy tile identity, saliency, visibility, screen area, byte scale, decode-time scale, `q_base`, `eta`, and budgets. This fixture validates loader/schema compatibility, calibrated lookup cap resolution, feasible and infeasible solver paths, deterministic output, and comparison against the tests-only oracle. It is not real Longdress tile input, not player integration, not Stage1 online output, and not a formal experiment baseline.
+
 ## Current Structure
 
 ```text
@@ -142,6 +148,8 @@ pcv-stage2-allocation/
 │  ├─ manual_review_checklist.zh-CN.md
 │  ├─ schema_contract.md
 │  ├─ schema_contract.zh-CN.md
+│  ├─ calibration_informed_proxy_fixture.md
+│  ├─ calibration_informed_proxy_fixture.zh-CN.md
 │  ├─ fixed_lambda_selection_contract.md
 │  ├─ fixed_lambda_selection_contract.zh-CN.md
 │  ├─ lambda_bracketing_contract.md
@@ -164,6 +172,7 @@ pcv-stage2-allocation/
 │  ├─ test_lambda_bisection.py
 │  ├─ test_solver_result.py
 │  ├─ test_exhaustive_oracle.py
+│  ├─ test_calibration_informed_proxy_fixture.py
 │  ├─ helpers/
 │  │  └─ exhaustive_oracle.py
 │  └─ fixtures/
@@ -175,6 +184,10 @@ pcv-stage2-allocation/
 │     │  ├─ expected_infeasible_result.json
 │     │  ├─ hand_calculation.md
 │     │  └─ hand_calculation.zh-CN.md
+│     ├─ calibration_informed_proxy/
+│     │  ├─ input_feasible.json
+│     │  ├─ input_infeasible.json
+│     │  └─ distance_lookup_fullbody_strict.json
 │     └─ .gitkeep
 ├─ src/
 │  ├─ pcv_stage2/
@@ -203,6 +216,7 @@ pcv-stage2-allocation/
 - [Final Solver Contract](docs/final_solver_contract.md): typed `solve_stage2(...)` API, structured result assembly, status mapping, and current solver boundary.
 - [Stage2 MVP Contract](docs/stage2_mvp_contract.md): planned algorithm contract, model boundaries, inputs, outputs, invariants, and resolved MVP decision defaults.
 - [Schema Contract](docs/schema_contract.md): explains the Stage2 input, distance lookup, and result Schema drafts.
+- [Calibration-Informed Proxy Fixture](docs/calibration_informed_proxy_fixture.md): fixture mapping note for the Phase 2A calibration-informed proxy fixture, including calibrated/proxy boundaries and reproducibility.
 - [Decision Log](docs/decision_log.md): decision gates for lookup semantics, infeasible budget behavior, multiplier search rules, and provenance vocabulary.
 - [Manual Review Checklist](docs/manual_review_checklist.md): questions for researcher-side review of the generated Stage2 contract.
 - [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md): manual calculation for the synthetic 3x3 fixture.
@@ -223,6 +237,7 @@ This repository currently has no:
 - runtime exact or exhaustive MCKP solver;
 - baseline algorithms;
 - Longdress input generator;
+- real Longdress spatial tile fixture;
 - batch experiment runner;
 - plotting;
 - general-purpose JSON validator;
@@ -235,4 +250,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 1G is reviewed, the next suggested step is to plan a small result-inspection workflow or solver-output documentation. Runtime exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.
+After Phase 2A is reviewed, the next suggested step is to plan a small result-inspection workflow or solver-output documentation. Runtime exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.
