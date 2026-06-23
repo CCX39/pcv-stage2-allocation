@@ -1,6 +1,6 @@
 # Current Implementation State
 
-This document is the Phase 1F handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1F so a new conversation or human reviewer can resume without reconstructing the whole history.
+This document is the Phase 1G handoff note for `pcv-stage2-allocation`. It records the implementation state through Phase 1G so a new conversation or human reviewer can resume without reconstructing the whole history.
 
 ## Project Goal
 
@@ -13,16 +13,16 @@ It is not the distance calibration project, and it is not a complete point-cloud
 Current completed phase:
 
 ```text
-Phase 1F: residual-budget local upgrade integration completed
+Phase 1G: tests-only small-instance exhaustive oracle completed
 ```
 
 Suggested next preparation phase:
 
 ```text
-Phase 1G preparation: result inspection workflow or solver output documentation
+Phase 1H preparation: result inspection workflow or solver output documentation
 ```
 
-No exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
+No runtime exact MCKP solver, general-purpose validator, experiment runner, or player integration has been implemented yet.
 
 ## Key Commit History
 
@@ -69,6 +69,8 @@ D0-4 provenance vocabulary  DRAFT
 - `tests/test_lambda_bracketing.py`
 - `tests/test_lambda_bisection.py`
 - `tests/test_solver_result.py`
+- `tests/test_exhaustive_oracle.py`
+- `tests/helpers/exhaustive_oracle.py`
 - `requirements.txt`
 - `src/pcv_stage2/solver.py`
 - `docs/fixed_lambda_selection_contract.md`
@@ -140,6 +142,12 @@ Phase 1F adds a local-upgrade postprocess after successful lambda search. The se
 
 Each upgrade stays inside `allowed_levels`, requires positive added bytes and positive net utility, and must fit in the current residual budget. The greedy order is highest gain per byte, with exact ties resolved by ascending `(tile_id, target_level_id)`. The upgrade audit is recorded in `local_upgrade.steps[]`; lambda trace remains only the lambda search trace.
 
+## Tests-Only Exhaustive Oracle
+
+Phase 1G adds `tests/helpers/exhaustive_oracle.py`, a small exhaustive oracle for tests only. It consumes `Stage2Input` plus already-resolved `LookupResolution` data, enumerates all per-tile allowed-level combinations for tiny inputs, rejects combinations over `budget_total_bytes`, and returns an exact feasible reference using the D0-3 best-feasible ranking order.
+
+The oracle has a default `max_enumerated_combinations = 100_000` guard and raises `ValueError` when an input exceeds that test-only scale. It is not imported by `src/pcv_stage2/`, not called by `solve_stage2(...)`, not a CLI, not a public runtime API, and not a baseline for batch experiments or paper method descriptions.
+
 ## Handcheck Fixture Core Results
 
 Success case:
@@ -163,7 +171,7 @@ status = INFEASIBLE_BUDGET
 ## Not Implemented Yet
 
 - general-purpose validator;
-- exact or exhaustive MCKP solver;
+- runtime exact or exhaustive MCKP solver;
 - baselines;
 - Longdress input generation;
 - batch experiments;
@@ -173,10 +181,10 @@ status = INFEASIBLE_BUDGET
 
 ## Suggested Next Step
 
-Do not jump directly into experiments without reviewing the local-upgrade audit first. A reasonable next step is:
+Do not jump directly into experiments without reviewing the local-upgrade audit and the small-instance oracle checks first. A reasonable next step is:
 
 ```text
-Phase 1G: result inspection workflow or solver output documentation
+Phase 1H: result inspection workflow or solver output documentation
 ```
 
 This document only records suggestions. It does not start either phase.

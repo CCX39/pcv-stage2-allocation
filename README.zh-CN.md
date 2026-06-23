@@ -4,7 +4,7 @@
 
 `pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
 
-当前仓库处于**阶段1F：剩余预算 local upgrade 集成**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade。当前实现是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
+当前仓库处于**阶段1G：tests-only 小规模 exhaustive oracle**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade；阶段1G在 `tests/` 下新增仅供测试使用的小规模 exhaustive oracle，用于 lookup cap 预处理后 tiny instance 的 exact reference。当前 runtime solver 仍是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
 
 ## Work1 结构
 
@@ -119,6 +119,12 @@ bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 pr
 
 每个 upgrade step 只能在该 tile 的 `allowed_levels` 内升级，要求增量数据量为正、增量净效用为正且不超过当前剩余预算，然后选择单位预算收益最大的候选；若收益完全相同，按 `(tile_id, target_level_id)` 升序决胜。升级步骤记录在 `local_upgrade.steps[]` 中，不会混入 `lambda_search.iterations[]`，也不会改写 lambda trace。
 
+## 阶段1G Tests-Only Exhaustive Oracle
+
+阶段1G在 `tests/helpers/` 下新增一个小规模 exhaustive oracle，仅用于测试中对 lookup cap 预处理后的 tiny instance 枚举 exact feasible reference。它会枚举每个 tile 的所有允许档位组合，检查同一组预算与 lookup 硬约束，并用于验证 runtime 近似 solver 不超过小规模原始 MCKP 的精确可行参考。
+
+该 oracle 不会被 `src/pcv_stage2/` 导入，不会被 `solve_stage2(...)` 调用，不提供 CLI 或公共 runtime API，也不是正式 baseline。它不得用于大规模输入、批量实验，或论文中对实时方法的算法描述。
+
 ## 当前目录结构
 
 ```text
@@ -157,6 +163,9 @@ pcv-stage2-allocation/
 │  ├─ test_lambda_bracketing.py
 │  ├─ test_lambda_bisection.py
 │  ├─ test_solver_result.py
+│  ├─ test_exhaustive_oracle.py
+│  ├─ helpers/
+│  │  └─ exhaustive_oracle.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -207,7 +216,7 @@ pcv-stage2-allocation/
 
 本仓库当前没有：
 
-- 精确或穷举 MCKP 求解器；
+- runtime 精确或穷举 MCKP 求解器；
 - baseline 算法；
 - Longdress 输入生成器；
 - 批量实验运行器；
@@ -222,4 +231,4 @@ pcv-stage2-allocation/
 
 ## 后续计划
 
-阶段1F经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。
+阶段1G经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。runtime 精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。

@@ -4,7 +4,7 @@ Languages: English | [中文](README.zh-CN.md)
 
 `pcv-stage2-allocation` is the Stage2 workspace for Work1 of the research topic "Lightweight viewport-aware point-cloud volumetric video transmission and rendering co-optimization." Its purpose is to define, review, and later implement the spatial tile quality allocation mechanism under a total GoF data budget.
 
-This repository is currently at **Phase 1F: residual-budget local upgrade integration**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly; Phase 1F adds residual-budget local upgrade after the lambda-search seed. This is a low-complexity approximation path for Stage2 allocation, not an exact 0-1 MCKP solver.
+This repository is currently at **Phase 1G: tests-only small-instance exhaustive oracle**. Phase 0A created the project skeleton and algorithm contract draft; Phase 0A.1 froze the MVP default behavior for infeasible budgets and `lambda` search rules; Phase 0B added draft schemas for Stage2 input, distance lookup, and future result output; Phase 0C added a small 3-tile by 3-level handcheck fixture; Phase 0D added a minimal schema and handcheck validation script; Phase 1A adds reusable Python dataclasses, JSON loading, preprocessing helpers, and handcheck tests; Phase 1B adds a fixed-lambda per-tile selection candidate kernel; Phase 1C adds adaptive lambda upper-bound bracketing and trace models; Phase 1D adds bisection over a bracket and best-feasible candidate tracking; Phase 1E adds a typed `solve_stage2(...)` API and JSON-compatible structured result assembly; Phase 1F adds residual-budget local upgrade after the lambda-search seed; Phase 1G adds a small exhaustive oracle under `tests/` for exact references on tiny preprocessed instances. The runtime Stage2 solver remains a low-complexity approximation path, not an exact 0-1 MCKP solver.
 
 ## Work1 Structure
 
@@ -119,6 +119,12 @@ Phase 1F applies a lightweight local upgrade after lambda search returns a budge
 
 Each upgrade step stays inside the tile's `allowed_levels`, requires positive extra bytes, positive net-utility gain, and enough residual budget, then selects the largest gain per byte with deterministic `(tile_id, target_level_id)` tie-breaking. Upgrade steps are recorded in `local_upgrade.steps[]`; they are not mixed into `lambda_search.iterations[]` and do not rewrite the lambda trace.
 
+## Phase 1G Tests-Only Exhaustive Oracle
+
+Phase 1G adds a small exhaustive oracle in `tests/helpers/` for test-only exact feasible references after lookup cap preprocessing. It enumerates every allowed per-tile level combination only for tiny inputs, checks the same hard budget and lookup constraints, and supports tests that compare the approximate runtime solver against an exact small-instance reference.
+
+This oracle is not imported by `src/pcv_stage2/`, not called by `solve_stage2(...)`, not exposed as a CLI or public runtime API, and not a formal baseline. It must not be used for large inputs, batch experiments, or paper descriptions of the real-time method.
+
 ## Current Structure
 
 ```text
@@ -157,6 +163,9 @@ pcv-stage2-allocation/
 │  ├─ test_lambda_bracketing.py
 │  ├─ test_lambda_bisection.py
 │  ├─ test_solver_result.py
+│  ├─ test_exhaustive_oracle.py
+│  ├─ helpers/
+│  │  └─ exhaustive_oracle.py
 │  └─ fixtures/
 │     ├─ handcheck_3x3/
 │     │  ├─ input_success.json
@@ -211,7 +220,7 @@ pcv-stage2-allocation/
 
 This repository currently has no:
 
-- exact or exhaustive MCKP solver;
+- runtime exact or exhaustive MCKP solver;
 - baseline algorithms;
 - Longdress input generator;
 - batch experiment runner;
@@ -226,4 +235,4 @@ It should not be described as a completed or validated Stage2 allocator.
 
 ## Next Plan
 
-After Phase 1F is reviewed, the next suggested step is to plan a small result-inspection workflow or solver-output documentation. Exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.
+After Phase 1G is reviewed, the next suggested step is to plan a small result-inspection workflow or solver-output documentation. Runtime exact MCKP solving, baselines, real Longdress generation, batch experiments, plotting, and player integration remain outside the current scope.
