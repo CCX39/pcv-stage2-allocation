@@ -1,5 +1,3 @@
-语言：[English](hand_calculation.md) | 中文
-
 # 3x3 Stage2 手算 Fixture
 
 本 fixture 是一个很小的合成手算样例，用于在 generic-candidate 迁移后验证 Stage2 的 PDL lookup `cap` 语义、每个 tile 恰好选择一个候选、`B_min_feasible`、`INFEASIBLE_BUDGET`、净效用计算和预算可行性。
@@ -20,7 +18,7 @@ net_utility_i,j = spatial_utility_i,j - eta * d_ms_i,j
 
 所有数值都是合成手算值。`candidate_id` 只表示候选身份，不表示质量顺序。
 
-## Lookup Cap 解析
+## Lookup cap 解析
 
 lookup 使用 PDL metadata 上界筛选：
 
@@ -66,7 +64,7 @@ allowed_candidate_ids = {candidate | candidate.pdl_ratio <= pdl_max_dist}
 B_min_feasible = 50 + 40 + 30 = 120
 ```
 
-## Success Case
+## Success case
 
 `input_success.json` 使用：
 
@@ -94,7 +92,7 @@ budget_utilization = 200 / 210 = 0.9523809524
 
 `expected_success_result.json` 记录这个手算结果。`lambda_search.enabled` 为 `false`，因为该文件是手算参考，不是 solver 搜索轨迹。
 
-## Infeasible Case
+## Infeasible case
 
 `input_infeasible.json` 使用：
 

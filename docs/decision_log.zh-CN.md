@@ -1,4 +1,6 @@
-# Decision Log
+# 决策记录
+
+本文记录当前仓库已经冻结的工程决策。Phase 2B.2 只整理文档语言和 Markdown 组织，不改变这些技术决策。
 
 ## D0-1 / D2B.1：lookup 是基于 candidate.pdl_ratio 的 PDL 上界筛选
 
@@ -7,7 +9,7 @@
 | 决策 | lookup `semantics = cap` 表示 `candidate.pdl_ratio <= pdl_max_dist` 的候选保留规则。 |
 | 背景 | 旧运行时曾把 lookup 解释为连续 PDL 档位前缀。Phase 2B.1 已迁移为 generic transmission candidate，候选不再天然全序。 |
 | 影响 | 预处理只按显式 `pdl_ratio` 筛选，不按 `candidate_id`、数组位置、QP、codec 或 file format 筛选。 |
-| 边界 | 当前 PDL lookup 来自 PLY nested-PDL calibration，不是 DRC-aware 质量测量，也不是最终 QoE 结论。 |
+| 边界 | 当前 PDL lookup 来自 PLY nested-PDL calibration，不是 DRC-aware quality measurement，也不是最终 QoE 结论。 |
 
 相同 PDL 下的 PLY、DRC 或不同 codec 参数候选应同时保留。高于 `pdl_max_dist` 的候选被剔除并记录在 lookup resolution 中。
 
@@ -33,7 +35,7 @@ B_min_feasible = sum_i min(candidate.r_bytes for candidate in allowed_candidates
 
 不允许静默超预算、漏选 tile、放宽 lookup、自动提高预算或插入空候选。
 
-## D0-3 / D2B.1：固定 lambda 与 best-feasible 平局规则
+## D0-3 / D2B.1：fixed lambda 与 best-feasible 平局规则
 
 固定 lambda 下每个 tile 独立选择：
 
@@ -41,7 +43,7 @@ B_min_feasible = sum_i min(candidate.r_bytes for candidate in allowed_candidates
 argmax_j [Uhat_i,j - lambda * R_i,j]
 ```
 
-固定 lambda 内部平局：
+fixed-lambda 内部平局：
 
 1. penalized score 更高；
 2. `R` 更小；
@@ -81,6 +83,15 @@ calibration-informed proxy fixture 使用 Longdress full-body strict PDL lookup 
 
 该 fixture 只验证输入映射、lookup cap、预算状态和可审查输出。它不能用于声明 Longdress tile-level 传输收益、真实解码开销、真实播放器 QoE 或算法性能提升。
 
-## D2B.1：本轮明确不做
+## D2B.2：项目说明文档只保留中文
 
-本轮不接入真实 artifact root，不读取或生成真实 PLY/DRC assets，不生成 frame 1051 正式 Stage2Input，不测 target-side `D`，不构建 DRC-aware 或 format-aware `q`，不实现 target-aware lookup、Pareto pruning、baseline、批量实验、绘图或播放器接入。
+Phase 2B.2 将仓库说明文档统一收敛为中文 Markdown。对应英文镜像被删除；保留的中文文档继续使用 `.zh-CN.md` 文件名。
+
+该阶段不修改代码、Schema、fixture、测试、脚本或算法语义。
+
+## 后续阶段编号
+
+- Phase 2B.3：真实候选元数据只读桥接，尚未开始。
+- Phase 2B.4：frame 1051 求解器行为验证，尚未开始。
+
+本轮不接入真实 artifact root，不读取或生成真实 PLY/DRC assets，不生成 frame 1051 正式 Stage2Input，不测 target-side `D`，不构建 DRC-aware 或 format-aware `q`，不实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting 或播放器接入。

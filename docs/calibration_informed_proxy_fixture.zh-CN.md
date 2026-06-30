@@ -1,6 +1,8 @@
-# Calibration-Informed Proxy Fixture 说明
+# Calibration-informed proxy fixture 说明
 
 本文只说明 `tests/fixtures/calibration_informed_proxy/` 的来源、映射方式、代理边界和复现方式，不是新的算法 contract。
+
+Phase 2B.1 已将该 fixture 迁移为 generic-candidate JSON。Phase 2B.2 只整理本文档语言，不修改 fixture 内容。
 
 ## 目的
 
@@ -8,15 +10,15 @@
 
 统一名称为：calibration-informed proxy fixture。
 
-## 为什么它不是实际 Longdress Tile 输入
+## 为什么它不是实际 Longdress tile 输入
 
-三個 tile ID 是 proxy 名称，不是从 Longdress 几何或真实 tile center 推导得到的空间切块。`p_sal`、`visibility`、`screen_area`、`r_bytes`、`d_ms`、`q_base`、`eta` 和预算均为 proxy。
+三个 tile ID 是 proxy 名称，不是从 Longdress 几何或真实 tile center 推导得到的空间切块。`p_sal`、`visibility`、`screen_area`、`r_bytes`、`d_ms`、`q_base`、`eta` 和预算均为 proxy。
 
-`distance_norm = 1.0, 3.0, 6.0` 选自 calibrated lookup 的支持点，但在本 fixture 中不是由真实 Longdress tile center 推导得到的几何距离。
+`distance_norm = 1.0, 3.0, 6.0` 选自 calibrated lookup 的支持点，但在本 fixture 中不是由真实 Longdress tile center 推导得到的几何距离。`normalized_render_distance` 是归一化渲染距离，不是物理米。
 
-本 fixture 不包含 measured tile-level 文件大小、真实端侧 decode benchmark、真实用户 viewport trace 或播放器 QoE。
+本 fixture 不包含 measured tile-level 文件大小、真实 target-side decode benchmark、真实用户 viewport trace 或播放器 QoE。
 
-## Calibrated / Proxy 映射
+## Calibrated / proxy 映射
 
 calibrated 字段：
 
@@ -73,7 +75,7 @@ G(d) = 1.0
 net_utility = p_sal * visibility * screen_area * q_base - eta * d_ms
 ```
 
-## Full-Body Strict Lookup 来源
+## Full-body strict lookup 来源
 
 lookup 文件：
 
@@ -146,3 +148,7 @@ python scripts/validate_handcheck_fixtures.py
 它不能用于声明 Longdress tile-level 传输收益、真实解码开销、真实播放器 QoE、真实用户视口行为、baseline 性能或算法性能提升。
 
 它不是实际 Longdress tile input，不是 Stage1 在线输出，不是播放器集成，也不是正式实验 baseline。
+
+## 阶段边界
+
+Phase 2B.3 的真实候选元数据只读桥接尚未开始；Phase 2B.4 的 frame 1051 求解器行为验证也尚未开始。

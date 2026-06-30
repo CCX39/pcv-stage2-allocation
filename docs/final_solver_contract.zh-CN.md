@@ -1,6 +1,8 @@
-# Final Solver Contract
+# 最终求解器契约
 
-本文记录当前 typed `solve_stage2(...)` API 的运行时契约。当前实现是 Stage2 allocation 的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
+本文记录当前 typed `solve_stage2(...)` API 的运行时契约。Phase 2B.1 已完成通用传输版本候选迁移；Phase 2B.2 只整理文档，不改变本契约的技术语义。
+
+当前实现是 Stage2 allocation 的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
 
 ## 输入
 
@@ -14,7 +16,7 @@
 
 `candidate_id` 只用于身份和最后稳定平局处理，不表示自然质量顺序。
 
-## Lookup Contract
+## Lookup 契约
 
 当前 lookup 只实现：
 
@@ -23,7 +25,9 @@ semantics = cap
 allowed_candidate_ids = {candidate | candidate.pdl_ratio <= pdl_max_dist}
 ```
 
-启用 PDL lookup 时，候选缺少 `pdl_ratio` 是 `INVALID_INPUT`。非空 `target_id` 的 target-aware lookup 是 `INVALID_LOOKUP`。不得把 `target_id` 当作 `tile_id`。
+启用 PDL lookup 时，候选缺少 `pdl_ratio` 是 `INVALID_INPUT`。非空 `target_id` 的 target-aware lookup 是 `INVALID_LOOKUP`，不得把 `target_id` 当作 `tile_id`。
+
+当前 PDL lookup 来自 PLY nested-PDL calibration，不是 DRC-aware quality measurement，也不是最终 QoE 结论。
 
 ## 状态码
 
@@ -35,9 +39,9 @@ allowed_candidate_ids = {candidate | candidate.pdl_ratio <= pdl_max_dist}
 - `NUMERICAL_ERROR`：理论上预算可行，但当前 lambda search 配置未恢复预算可行候选。
 - `INTERNAL_CONSTRAINT_VIOLATION`：组装结果违反内部不变量。
 
-## Fixed Lambda
+## fixed lambda 选择
 
-固定 `lambda` 下，每个 tile 独立选择：
+固定 lambda 下，每个 tile 独立选择：
 
 ```text
 argmax_j [Uhat_i,j - lambda * R_i,j]
@@ -52,7 +56,7 @@ argmax_j [Uhat_i,j - lambda * R_i,j]
 
 这里不会使用数组位置、候选编号大小、QP、codec 或 file format 表达优劣。
 
-## Lambda Search
+## lambda search
 
 lambda search 保留：
 
@@ -64,7 +68,7 @@ lambda search 保留：
 
 best-feasible ranking 为总净效用更高、预算利用率更高、总解码耗时更低、排序后的 `(tile_id, selected_candidate_id)` 序列更小。
 
-## Local Repair
+## local repair
 
 local repair 从 `lambda_search.best_feasible_iteration` 对应的 seed candidate 开始。它不会改写 lambda trace。
 
@@ -110,6 +114,8 @@ Delta_R <= residual_budget
 
 `selected_candidate_snapshot` 必须保留候选解释信息，包括 PDL、format、codec、asset ref、`R`、`D`、`q` 和 provenance。
 
-## 明确边界
+## 当前未实现
 
-当前 solver 未实现 exact MCKP、动态规划、branch-and-bound、Pareto pruning、baseline、target-aware lookup、真实 asset 读取、frame 1051 正式输入、target-side `D` 测量、DRC-aware 或 format-aware `q`、批量实验、绘图或播放器接入。
+当前 solver 未实现 exact MCKP、动态规划、branch-and-bound、Pareto pruning、baseline、target-aware lookup、真实 asset 读取、frame 1051 正式输入、target-side `D` 测量、DRC-aware 或 format-aware `q`、batch runner、plotting 或播放器接入。
+
+Phase 2B.3 的真实候选元数据只读桥接和 Phase 2B.4 的 frame 1051 求解器行为验证均尚未开始。

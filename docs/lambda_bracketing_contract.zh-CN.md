@@ -1,74 +1,34 @@
-语言：[English](lambda_bracketing_contract.md) | 中文
+# Lambda 上界括区间契约
 
-# Lambda 括区间契约
+本文说明 lambda 上界括区间内核的当前语义。该内核早期在 Phase 1C 引入，Phase 2B.1 已迁移为 generic-candidate trace。Phase 2B.2 只整理文档，不修改实现。
 
-状态：阶段1C实现说明。
+## 目的
 
-本文说明阶段1C新增的自适应 `lambda` 上界括区间内核。bracketing 组件为阶段1D二分搜索内核准备 low/high 搜索区间和 trace 数据，不是完整 Stage2 求解器。
+bracketing 从 `lambda = 0` 开始探测 fixed-lambda candidate。如果该 candidate 已满足预算，则直接返回 feasible-at-zero。否则按配置扩大 lambda 上界，直到找到第一个预算可行 candidate，或达到最大括区间步数。
 
-## 输入前提
+## 硬约束
 
-括区间流程发生在输入解析、lookup cap 解析和 `B_min_feasible` 计算之后。如果：
-
-```text
-budget_total_bytes < B_min_feasible
-```
-
-bracketing helper 会抛出受控的预处理错误。未来最终 `solve_stage2` 层必须把这个条件映射为 `INFEASIBLE_BUDGET`；阶段1C不组装正式结果。
-
-## Probe 顺序
-
-当前实现使用统一的 `LambdaSearchConfig`。bracketing 会使用其中的 `lambda_initial_high`、`lambda_max_bracket_steps` 和 `score_epsilon`；二分相关字段也放在同一个显式配置对象中，避免调用方维护两套含义相近的配置模型。
-
-内核总是先评估 `lambda = 0`。
-
-如果零 `lambda` candidate 已经满足预算，则结果标记为 `feasible_at_zero`，不再执行正 `lambda` probe。
-
-如果零 `lambda` candidate 超预算，则从 `lambda_initial_high` 开始尝试。每次正 `lambda` probe 仍超预算时，将当前值加倍：
+调用前会检查：
 
 ```text
-lambda <- 2 * lambda
+Budget_total >= B_min_feasible
 ```
 
-`lambda_max_bracket_steps` 表示最多尝试多少个正 `lambda` 值，不包含必做的零 `lambda` probe。取值为 `0` 表示零 `lambda` probe 之后不再尝试正 `lambda` bracket probe。
+如果预算低于最低可行预算，bracketing 不应继续执行；最终 `solve_stage2(...)` 会把该条件映射为 `INFEASIBLE_BUDGET`。
 
-## 结果类型
+## Trace
 
-`bracket_found = true` 且 `feasible_at_zero = true` 表示零 `lambda` candidate 已满足预算。
+trace 记录每次 probe 的：
 
-`bracket_found = true` 且 `feasible_at_zero = false` 表示 trace 中包含一个超预算的 lower lambda 和首次预算可行的正 upper lambda。
+- lambda；
+- total bytes；
+- total net utility；
+- total decode ms；
+- 是否预算可行；
+- 每个 tile 的 `selected_candidate_id`。
 
-`bracket_found = false` 表示配置允许的正 `lambda` probe 次数用完后仍未找到预算可行 candidate。这是 bracket failure result，不是最终 solver 状态，也不得伪造可行 candidate。
+trace 只描述 lambda probe 过程，不包含 local repair 后处理。
 
-## Trace 字段
+## 边界
 
-每个 trace point 记录：
-
-- `step_index`；
-- `lambda_value`；
-- `total_bytes`；
-- `total_net_utility`；
-- `total_decode_ms`；
-- `is_budget_feasible`；
-- `selected_levels`。
-
-所有 trace 值都来自 `select_fixed_lambda(...)` 返回的 fixed-lambda candidate。`total_decode_ms` 是实际被选档位的 `d_ms` 之和。
-
-## 范围边界
-
-bracketing 组件本身不实现：
-
-- 二分搜索；
-- 最佳可行 candidate 排序；
-- 最终 `solve_stage2` API；
-- 最终 `SUCCESS` 或 `INFEASIBLE_BUDGET` result 组装；
-- local upgrade；
-- 原始 MCKP 的穷举精确求解；
-- baseline 算法；
-- Longdress 输入生成；
-- 批量实验；
-- 绘图；
-- 播放器集成；
-- target-aware lookup schema 扩展。
-
-bracket success 只是松弛内核的搜索边界，不能描述为原始 0-1 MCKP 的严格全局最优。
+bracketing 不实现二分搜索、不排序多个 best-feasible candidate、不执行 local repair，也不组装最终 result。
