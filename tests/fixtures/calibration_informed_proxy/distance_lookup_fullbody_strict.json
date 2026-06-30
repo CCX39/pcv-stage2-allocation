@@ -1,31 +1,26 @@
 {
-  "schema_version": "0.1.0",
-  "lookup_profile_id": "longdress_fullbody_strict_calibration_proxy_v1",
+  "schema_version": "0.2.0",
+  "lookup_profile_id": "longdress_fullbody_strict_calibration_proxy_v2",
   "semantics": "cap",
   "distance_unit": "normalized_render_distance",
-  "quality_levels": [
+  "pdl_support": [
     {
-      "level_id": 1,
       "pdl_ratio": 0.2,
       "quality_label": "PDL_0.2"
     },
     {
-      "level_id": 2,
       "pdl_ratio": 0.4,
       "quality_label": "PDL_0.4"
     },
     {
-      "level_id": 3,
       "pdl_ratio": 0.6,
       "quality_label": "PDL_0.6"
     },
     {
-      "level_id": 4,
       "pdl_ratio": 0.8,
       "quality_label": "PDL_0.8"
     },
     {
-      "level_id": 5,
       "pdl_ratio": 1.0,
       "quality_label": "PDL_1.0"
     }
@@ -38,39 +33,39 @@
     "source_runs": [
       "20260602_161531_longdress_full10"
     ],
-    "notes": "Calibrated full-body strict lookup support points only: normalized distance 1.0 -> cap level 5, 3.0 -> cap level 3, 6.0 -> cap level 2. This file is used by a calibration-informed proxy fixture; tile metadata in the paired Stage2 inputs is proxy, not actual Longdress spatial tile data."
+    "notes": "Calibrated full-body strict lookup support points only: normalized distance 1.0 -> pdl_max_dist 1.0, 3.0 -> pdl_max_dist 0.6, 6.0 -> pdl_max_dist 0.4. This file is used by a calibration-informed proxy fixture; tile metadata in the paired Stage2 inputs is proxy, not actual Longdress spatial tile data."
   },
   "rules": [
     {
-      "rule_id": "fullbody_strict_d1_cap5",
+      "rule_id": "fullbody_strict_d1_pdl1_0",
       "view_context": "full_body_calibration_informed_proxy",
       "target_id": null,
       "distance_match": {
         "exact_distance": 1.0
       },
-      "lookup_level": 5,
+      "pdl_max_dist": 1.0,
       "threshold_profile": "strict_p10_ssim_ge_0.98",
       "notes": "From full-body strict lookup for source run 20260602_161531_longdress_full10."
     },
     {
-      "rule_id": "fullbody_strict_d3_cap3",
+      "rule_id": "fullbody_strict_d3_pdl0_6",
       "view_context": "full_body_calibration_informed_proxy",
       "target_id": null,
       "distance_match": {
         "exact_distance": 3.0
       },
-      "lookup_level": 3,
+      "pdl_max_dist": 0.6,
       "threshold_profile": "strict_p10_ssim_ge_0.98",
       "notes": "From full-body strict lookup for source run 20260602_161531_longdress_full10."
     },
     {
-      "rule_id": "fullbody_strict_d6_cap2",
+      "rule_id": "fullbody_strict_d6_pdl0_4",
       "view_context": "full_body_calibration_informed_proxy",
       "target_id": null,
       "distance_match": {
         "exact_distance": 6.0
       },
-      "lookup_level": 2,
+      "pdl_max_dist": 0.4,
       "threshold_profile": "strict_p10_ssim_ge_0.98",
       "notes": "From full-body strict lookup for source run 20260602_161531_longdress_full10."
     }

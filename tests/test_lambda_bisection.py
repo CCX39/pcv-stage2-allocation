@@ -48,25 +48,25 @@ def synthetic_candidate(
     *,
     total_bytes: float,
     total_net_utility: float,
-    selected_levels: tuple[tuple[str, int], ...],
+    selected_candidates: tuple[tuple[str, str], ...],
     total_decode_ms: float = 10.0,
     budget_total_bytes: float = 100.0,
 ) -> FixedLambdaSelection:
-    per_tile_decode = total_decode_ms / len(selected_levels)
+    per_tile_decode = total_decode_ms / len(selected_candidates)
     return FixedLambdaSelection(
         lambda_value=0.0,
         tile_selections=tuple(
             FixedLambdaTileSelection(
                 lambda_value=0.0,
                 tile_id=tile_id,
-                allowed_level_ids=(1, 2, 3),
-                selected_level_id=level_id,
+                allowed_candidate_ids=("a", "b", "c"),
+                selected_candidate_id=candidate_id,
                 selected_r_bytes=0.0,
                 selected_d_ms=per_tile_decode,
                 selected_net_utility=0.0,
                 selected_penalized_score=0.0,
             )
-            for tile_id, level_id in selected_levels
+            for tile_id, candidate_id in selected_candidates
         ),
         total_bytes=total_bytes,
         total_net_utility=total_net_utility,
@@ -77,7 +77,6 @@ def synthetic_candidate(
 
 
 def test_handcheck_bisection_search_keeps_budget_feasible_best_candidate() -> None:
-    # Synthetic handcheck data, not real Longdress experiment output.
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
 
@@ -185,16 +184,16 @@ def test_best_feasible_comparator_prefers_higher_net_utility() -> None:
     incumbent = synthetic_candidate(
         total_bytes=90,
         total_net_utility=10,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
     )
-    candidate = synthetic_candidate(
+    candidate_result = synthetic_candidate(
         total_bytes=80,
         total_net_utility=11,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
     )
 
     assert is_better_feasible_candidate(
-        candidate,
+        candidate_result,
         incumbent,
         score_epsilon=1e-9,
     )
@@ -204,16 +203,16 @@ def test_best_feasible_comparator_prefers_budget_utilization_when_utility_ties()
     incumbent = synthetic_candidate(
         total_bytes=80,
         total_net_utility=10.0 + 5e-7,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
     )
-    candidate = synthetic_candidate(
+    candidate_result = synthetic_candidate(
         total_bytes=90,
         total_net_utility=10.0,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
     )
 
     assert is_better_feasible_candidate(
-        candidate,
+        candidate_result,
         incumbent,
         score_epsilon=1e-6,
     )
@@ -224,41 +223,41 @@ def test_best_feasible_comparator_prefers_lower_decode_when_utility_and_bytes_ti
         total_bytes=80,
         total_net_utility=10,
         total_decode_ms=5,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
         budget_total_bytes=0,
     )
-    candidate = synthetic_candidate(
+    candidate_result = synthetic_candidate(
         total_bytes=0,
         total_net_utility=10,
         total_decode_ms=4,
-        selected_levels=(("A", 1),),
+        selected_candidates=(("A", "a"),),
         budget_total_bytes=0,
     )
     incumbent = replace(incumbent, total_bytes=0, is_budget_feasible=True)
 
     assert is_better_feasible_candidate(
-        candidate,
+        candidate_result,
         incumbent,
         score_epsilon=1e-9,
     )
 
 
-def test_best_feasible_comparator_uses_deterministic_level_order_last() -> None:
+def test_best_feasible_comparator_uses_deterministic_candidate_order_last() -> None:
     incumbent = synthetic_candidate(
         total_bytes=80,
         total_net_utility=10,
         total_decode_ms=5,
-        selected_levels=(("B", 1), ("A", 2)),
+        selected_candidates=(("B", "b"), ("A", "b")),
     )
-    candidate = synthetic_candidate(
+    candidate_result = synthetic_candidate(
         total_bytes=80,
         total_net_utility=10,
         total_decode_ms=5,
-        selected_levels=(("B", 2), ("A", 1)),
+        selected_candidates=(("B", "c"), ("A", "a")),
     )
 
     assert is_better_feasible_candidate(
-        candidate,
+        candidate_result,
         incumbent,
         score_epsilon=1e-9,
     )

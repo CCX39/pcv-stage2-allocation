@@ -1,8 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/CCX39/pcv-stage2-allocation/schemas/stage2_result.schema.json",
-  "title": "Stage2 MVP Result",
-  "description": "Schema for the current Stage2 structured solver output.",
+  "$id": "https://pcv-stage2.local/schemas/stage2_result.schema.json",
+  "title": "Stage2SolveResult",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -28,12 +27,10 @@
   ],
   "properties": {
     "schema_version": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "scenario_id": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "status": {
       "type": "string",
@@ -42,7 +39,7 @@
         "INFEASIBLE_BUDGET",
         "INVALID_INPUT",
         "INVALID_LOOKUP",
-        "NO_ALLOWED_LEVEL",
+        "NO_ALLOWED_CANDIDATE",
         "NUMERICAL_ERROR",
         "INTERNAL_CONSTRAINT_VIOLATION"
       ]
@@ -100,20 +97,20 @@
     "selected_tiles": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/selectedTile"
+        "$ref": "#/$defs/selected_tile"
       }
     },
     "lookup_resolution": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/lookupResolution"
+        "$ref": "#/$defs/lookup_resolution"
       }
     },
     "lambda_search": {
-      "$ref": "#/$defs/lambdaSearch"
+      "$ref": "#/$defs/lambda_search"
     },
     "local_upgrade": {
-      "$ref": "#/$defs/localUpgrade"
+      "$ref": "#/$defs/local_upgrade"
     },
     "runtime_ms": {
       "type": [
@@ -123,8 +120,7 @@
       "minimum": 0
     },
     "config_snapshot": {
-      "type": "object",
-      "additionalProperties": true
+      "type": "object"
     },
     "warnings": {
       "type": "array",
@@ -140,73 +136,168 @@
     }
   },
   "$defs": {
-    "selectedTile": {
+    "provenance_value": {
+      "type": "string",
+      "enum": [
+        "measured",
+        "calibrated",
+        "derived",
+        "proxy",
+        "synthetic"
+      ]
+    },
+    "provenance_map": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/provenance_value"
+      }
+    },
+    "candidate_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "pdl_ratio",
+        "file_format",
+        "codec",
+        "codec_params",
+        "asset_ref",
+        "r_bytes",
+        "d_ms",
+        "q_base",
+        "provenance"
+      ],
+      "properties": {
+        "candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pdl_ratio": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "file_format": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec_params": {
+          "type": "object"
+        },
+        "asset_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "r_bytes": {
+          "type": "number",
+          "minimum": 0
+        },
+        "d_ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "q_base": {
+          "type": "number",
+          "minimum": 0
+        },
+        "provenance": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/provenance_map"
+            },
+            {
+              "required": [
+                "r_bytes",
+                "d_ms",
+                "q_base",
+                "pdl_ratio",
+                "asset_ref"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "selected_tile": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "tile_id",
-        "selected_level_id",
+        "selected_candidate_id",
+        "selected_candidate_snapshot",
         "r_bytes",
         "d_ms",
         "net_utility",
         "spatial_utility",
-        "allowed_levels"
+        "allowed_candidate_ids",
+        "rejected_candidate_ids",
+        "lookup_pdl_max_dist"
       ],
       "properties": {
         "tile_id": {
           "type": "string",
           "minLength": 1
         },
-        "selected_level_id": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
+        "selected_candidate_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selected_candidate_snapshot": {
+          "$ref": "#/$defs/candidate_snapshot"
         },
         "r_bytes": {
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": "number",
           "minimum": 0
         },
         "d_ms": {
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": "number",
           "minimum": 0
         },
         "net_utility": {
-          "type": [
-            "number",
-            "null"
-          ]
+          "type": "number"
         },
         "spatial_utility": {
-          "type": [
-            "number",
-            "null"
-          ]
+          "type": "number"
         },
-        "allowed_levels": {
+        "allowed_candidate_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rejected_candidate_ids": {
           "type": "array",
           "items": {
-            "type": "integer",
-            "minimum": 1
+            "type": "string",
+            "minLength": 1
           }
+        },
+        "lookup_pdl_max_dist": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
         }
       }
     },
-    "lookupResolution": {
+    "lookup_resolution": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "tile_id",
         "lookup_profile_id",
-        "lookup_level",
-        "allowed_levels"
+        "matched_rule_id",
+        "pdl_max_dist",
+        "allowed_candidate_ids",
+        "rejected_candidate_ids"
       ],
       "properties": {
         "tile_id": {
@@ -218,28 +309,32 @@
           "minLength": 1
         },
         "matched_rule_id": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string",
+          "minLength": 1
         },
-        "lookup_level": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
+        "pdl_max_dist": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
         },
-        "allowed_levels": {
+        "allowed_candidate_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "rejected_candidate_ids": {
           "type": "array",
           "items": {
-            "type": "integer",
-            "minimum": 1
+            "type": "string",
+            "minLength": 1
           }
         }
       }
     },
-    "lambdaSearch": {
+    "lambda_search": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -260,41 +355,36 @@
           "type": [
             "number",
             "null"
-          ],
-          "exclusiveMinimum": 0
+          ]
         },
         "lambda_max_bracket_steps": {
           "type": [
             "integer",
             "null"
-          ],
-          "minimum": 0
+          ]
         },
         "score_epsilon": {
           "type": [
             "number",
             "null"
-          ],
-          "minimum": 0
+          ]
         },
         "lambda_epsilon": {
           "type": [
             "number",
             "null"
-          ],
-          "minimum": 0
+          ]
         },
         "max_iterations": {
           "type": [
             "integer",
             "null"
-          ],
-          "minimum": 0
+          ]
         },
         "iterations": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/lambdaIteration"
+            "$ref": "#/$defs/lambda_iteration"
           }
         },
         "best_feasible_iteration": {
@@ -306,7 +396,7 @@
         }
       }
     },
-    "lambdaIteration": {
+    "lambda_iteration": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -315,7 +405,7 @@
         "total_bytes",
         "total_net_utility",
         "total_decode_ms",
-        "selected_levels",
+        "selected_candidates",
         "is_budget_feasible"
       ],
       "properties": {
@@ -338,10 +428,10 @@
           "type": "number",
           "minimum": 0
         },
-        "selected_levels": {
+        "selected_candidates": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/lambdaSelectedLevel"
+            "$ref": "#/$defs/lambda_selected_candidate"
           }
         },
         "is_budget_feasible": {
@@ -349,25 +439,25 @@
         }
       }
     },
-    "lambdaSelectedLevel": {
+    "lambda_selected_candidate": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "tile_id",
-        "selected_level_id"
+        "selected_candidate_id"
       ],
       "properties": {
         "tile_id": {
           "type": "string",
           "minLength": 1
         },
-        "selected_level_id": {
-          "type": "integer",
-          "minimum": 1
+        "selected_candidate_id": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
-    "localUpgrade": {
+    "local_upgrade": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -413,32 +503,31 @@
         "steps": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/localUpgradeStep"
+            "$ref": "#/$defs/local_upgrade_step"
           }
         },
         "termination_reason": {
-          "type": "string",
-          "enum": [
-            "NOT_RUN",
-            "NO_FEASIBLE_POSITIVE_UPGRADE"
-          ]
+          "type": "string"
         }
       }
     },
-    "localUpgradeStep": {
+    "local_upgrade_step": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "step_index",
         "tile_id",
-        "from_level_id",
-        "to_level_id",
+        "from_candidate_id",
+        "to_candidate_id",
         "delta_r_bytes",
         "delta_net_utility",
         "gain_per_byte",
+        "residual_budget_before",
+        "residual_budget_after",
         "total_bytes_after",
         "total_net_utility_after",
-        "total_decode_ms_after"
+        "total_decode_ms_after",
+        "selection_reason"
       ],
       "properties": {
         "step_index": {
@@ -449,25 +538,30 @@
           "type": "string",
           "minLength": 1
         },
-        "from_level_id": {
-          "type": "integer",
-          "minimum": 1
+        "from_candidate_id": {
+          "type": "string",
+          "minLength": 1
         },
-        "to_level_id": {
-          "type": "integer",
-          "minimum": 1
+        "to_candidate_id": {
+          "type": "string",
+          "minLength": 1
         },
         "delta_r_bytes": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "type": "number"
         },
         "delta_net_utility": {
-          "type": "number",
-          "exclusiveMinimum": 0
+          "type": "number"
         },
         "gain_per_byte": {
+          "type": "number"
+        },
+        "residual_budget_before": {
           "type": "number",
-          "exclusiveMinimum": 0
+          "minimum": 0
+        },
+        "residual_budget_after": {
+          "type": "number",
+          "minimum": 0
         },
         "total_bytes_after": {
           "type": "number",
@@ -479,6 +573,10 @@
         "total_decode_ms_after": {
           "type": "number",
           "minimum": 0
+        },
+        "selection_reason": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
@@ -499,8 +597,7 @@
           "minLength": 1
         },
         "details": {
-          "type": "object",
-          "additionalProperties": true
+          "type": "object"
         }
       }
     }

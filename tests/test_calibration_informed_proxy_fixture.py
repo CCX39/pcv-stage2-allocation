@@ -45,18 +45,19 @@ def assert_schema_valid(payload: dict, schema_path: Path) -> None:
     Draft202012Validator(schema).validate(payload)
 
 
-def selected_levels(result) -> tuple[tuple[str, int], ...]:
+def selected_candidates(result) -> tuple[tuple[str, str], ...]:
     return tuple(
-        (tile.tile_id, tile.selected_level_id) for tile in result.selected_tiles
+        (tile.tile_id, tile.selected_candidate_id) for tile in result.selected_tiles
     )
 
 
 def solver_signature(result) -> tuple[object, ...]:
     return (
         result.status,
-        selected_levels(result),
+        selected_candidates(result),
         result.total_bytes,
         result.total_net_utility,
+        result.lambda_search["iterations"],
         result.local_upgrade.to_dict(),
     )
 
@@ -90,25 +91,40 @@ def test_calibration_informed_proxy_fixture_has_no_measured_tile_provenance() ->
             assert tile["provenance"]["distance_norm"] == "calibrated"
             for field_name in ("p_sal", "visibility", "screen_area", "view_context"):
                 assert tile["provenance"][field_name] == "proxy"
-            for level in tile["levels"]:
-                assert level["provenance"]["pdl_ratio"] == "calibrated"
-                assert level["provenance"]["q_base"] == "proxy"
-                assert level["provenance"]["r_bytes"] == "proxy"
-                assert level["provenance"]["d_ms"] == "proxy"
+            for item in tile["candidates"]:
+                assert item["provenance"]["pdl_ratio"] == "calibrated"
+                assert item["provenance"]["q_base"] == "proxy"
+                assert item["provenance"]["r_bytes"] == "proxy"
+                assert item["provenance"]["d_ms"] == "proxy"
+                assert item["provenance"]["asset_ref"] == "proxy"
 
 
-def test_calibration_informed_proxy_lookup_cap_resolves_allowed_levels() -> None:
+def test_calibration_informed_proxy_lookup_cap_resolves_allowed_candidates() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_feasible.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup_fullbody_strict.json")
 
     resolutions = resolve_lookup_for_input(stage2_input, lookup)
 
     assert {
-        resolution.tile_id: resolution.allowed_levels for resolution in resolutions
+        resolution.tile_id: resolution.allowed_candidate_ids
+        for resolution in resolutions
     } == {
-        "T_near_core": (1, 2, 3, 4, 5),
-        "T_mid_visible": (1, 2, 3),
-        "T_far_peripheral": (1, 2),
+        "T_near_core": (
+            "ply_pdl_0_2",
+            "ply_pdl_0_4",
+            "ply_pdl_0_6",
+            "ply_pdl_0_8",
+            "ply_pdl_1_0",
+        ),
+        "T_mid_visible": (
+            "ply_pdl_0_2",
+            "ply_pdl_0_4",
+            "ply_pdl_0_6",
+        ),
+        "T_far_peripheral": (
+            "ply_pdl_0_2",
+            "ply_pdl_0_4",
+        ),
     }
 
 
@@ -129,7 +145,8 @@ def test_calibration_informed_proxy_feasible_solver_path_and_determinism() -> No
     assert first.total_bytes <= 600.0
 
     for item in first.selected_tiles:
-        assert item.selected_level_id in item.allowed_levels
+        assert item.selected_candidate_id in item.allowed_candidate_ids
+        assert item.selected_candidate_snapshot["provenance"]["r_bytes"] == "proxy"
 
     json.dumps(payload)
     assert_schema_valid(payload, RESULT_SCHEMA)

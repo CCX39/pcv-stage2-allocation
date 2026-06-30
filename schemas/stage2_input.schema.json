@@ -1,8 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/CCX39/pcv-stage2-allocation/schemas/stage2_input.schema.json",
-  "title": "Stage2 MVP Input",
-  "description": "Draft schema for one Stage2 spatial quality allocation decision scenario. This schema constrains data shape only and does not implement solver behavior.",
+  "$id": "https://pcv-stage2.local/schemas/stage2_input.schema.json",
+  "title": "Stage2Input",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,8 +15,7 @@
   ],
   "properties": {
     "schema_version": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "scenario_id": {
       "type": "string",
@@ -46,11 +44,11 @@
       }
     },
     "provenance_summary": {
-      "$ref": "#/$defs/provenanceSummary"
+      "type": "object"
     }
   },
   "$defs": {
-    "provenanceValue": {
+    "provenance_value": {
       "type": "string",
       "enum": [
         "measured",
@@ -60,33 +58,10 @@
         "synthetic"
       ]
     },
-    "provenanceMap": {
+    "provenance_map": {
       "type": "object",
-      "minProperties": 1,
       "additionalProperties": {
-        "$ref": "#/$defs/provenanceValue"
-      }
-    },
-    "provenanceSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "default_type"
-      ],
-      "properties": {
-        "default_type": {
-          "$ref": "#/$defs/provenanceValue"
-        },
-        "notes": {
-          "type": "string"
-        },
-        "source_ids": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
+        "$ref": "#/$defs/provenance_value"
       }
     },
     "tile": {
@@ -99,8 +74,7 @@
         "screen_area",
         "distance_norm",
         "view_context",
-        "levels",
-        "provenance"
+        "candidates"
       ],
       "properties": {
         "tile_id": {
@@ -113,67 +87,73 @@
         },
         "visibility": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 1
+          "minimum": 0
         },
         "screen_area": {
           "type": "number",
-          "minimum": 0,
-          "maximum": 1
+          "minimum": 0
         },
         "distance_norm": {
-          "type": "number",
-          "minimum": 0
+          "type": "number"
         },
         "view_context": {
           "type": "string",
-          "minLength": 1,
-          "examples": [
-            "full_body",
-            "near_field"
-          ]
+          "minLength": 1
         },
-        "levels": {
+        "candidates": {
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/$defs/qualityLevel"
+            "$ref": "#/$defs/candidate"
           }
         },
         "provenance": {
-          "$ref": "#/$defs/provenanceMap"
+          "$ref": "#/$defs/provenance_map"
         }
       }
     },
-    "qualityLevel": {
+    "candidate": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "level_id",
-        "quality_label",
-        "pdl_ratio",
-        "q_base",
+        "candidate_id",
+        "file_format",
+        "codec",
+        "codec_params",
+        "asset_ref",
         "r_bytes",
         "d_ms",
+        "q_base",
         "provenance"
       ],
       "properties": {
-        "level_id": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "quality_label": {
+        "candidate_id": {
           "type": "string",
           "minLength": 1
         },
         "pdl_ratio": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "exclusiveMinimum": 0,
           "maximum": 1
         },
-        "q_base": {
-          "type": "number",
-          "minimum": 0
+        "file_format": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec_params": {
+          "type": "object"
+        },
+        "asset_ref": {
+          "type": "string",
+          "minLength": 1
         },
         "r_bytes": {
           "type": "number",
@@ -183,8 +163,25 @@
           "type": "number",
           "minimum": 0
         },
+        "q_base": {
+          "type": "number",
+          "minimum": 0
+        },
         "provenance": {
-          "$ref": "#/$defs/provenanceMap"
+          "allOf": [
+            {
+              "$ref": "#/$defs/provenance_map"
+            },
+            {
+              "required": [
+                "r_bytes",
+                "d_ms",
+                "q_base",
+                "pdl_ratio",
+                "asset_ref"
+              ]
+            }
+          ]
         }
       }
     }

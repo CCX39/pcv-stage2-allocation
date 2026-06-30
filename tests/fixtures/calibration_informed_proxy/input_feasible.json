@@ -1,10 +1,10 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "scenario_id": "calibration_informed_proxy_feasible",
-  "description": "Calibration-informed proxy fixture using calibrated Longdress full-body strict lookup caps and proxy tile metadata.",
+  "description": "Calibration-informed proxy fixture using calibrated Longdress full-body strict PDL lookup caps and proxy tile metadata.",
   "budget_total_bytes": 600.0,
   "eta": 0.01,
-  "lookup_profile_id": "longdress_fullbody_strict_calibration_proxy_v1",
+  "lookup_profile_id": "longdress_fullbody_strict_calibration_proxy_v2",
   "tiles": [
     {
       "tile_id": "T_near_core",
@@ -13,11 +13,14 @@
       "screen_area": 0.3,
       "distance_norm": 1.0,
       "view_context": "full_body_calibration_informed_proxy",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "PDL_0.2",
+          "candidate_id": "ply_pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_near_core/ply_pdl_0_2.ply",
           "q_base": 0.2,
           "r_bytes": 100.0,
           "d_ms": 1.0,
@@ -25,13 +28,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "PDL_0.4",
+          "candidate_id": "ply_pdl_0_4",
           "pdl_ratio": 0.4,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_near_core/ply_pdl_0_4.ply",
           "q_base": 0.4,
           "r_bytes": 200.0,
           "d_ms": 2.0,
@@ -39,13 +46,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "PDL_0.6",
+          "candidate_id": "ply_pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_near_core/ply_pdl_0_6.ply",
           "q_base": 0.6,
           "r_bytes": 300.0,
           "d_ms": 3.0,
@@ -53,13 +64,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 4,
-          "quality_label": "PDL_0.8",
+          "candidate_id": "ply_pdl_0_8",
           "pdl_ratio": 0.8,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_near_core/ply_pdl_0_8.ply",
           "q_base": 0.8,
           "r_bytes": 400.0,
           "d_ms": 4.0,
@@ -67,13 +82,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 5,
-          "quality_label": "PDL_1.0",
+          "candidate_id": "ply_pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_near_core/ply_pdl_1_0.ply",
           "q_base": 1.0,
           "r_bytes": 500.0,
           "d_ms": 5.0,
@@ -81,7 +100,8 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         }
       ],
@@ -100,11 +120,14 @@
       "screen_area": 0.18,
       "distance_norm": 3.0,
       "view_context": "full_body_calibration_informed_proxy",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "PDL_0.2",
+          "candidate_id": "ply_pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_mid_visible/ply_pdl_0_2.ply",
           "q_base": 0.2,
           "r_bytes": 70.0,
           "d_ms": 0.7,
@@ -112,13 +135,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "PDL_0.4",
+          "candidate_id": "ply_pdl_0_4",
           "pdl_ratio": 0.4,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_mid_visible/ply_pdl_0_4.ply",
           "q_base": 0.4,
           "r_bytes": 140.0,
           "d_ms": 1.4,
@@ -126,13 +153,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "PDL_0.6",
+          "candidate_id": "ply_pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_mid_visible/ply_pdl_0_6.ply",
           "q_base": 0.6,
           "r_bytes": 210.0,
           "d_ms": 2.1,
@@ -140,13 +171,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 4,
-          "quality_label": "PDL_0.8",
+          "candidate_id": "ply_pdl_0_8",
           "pdl_ratio": 0.8,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_mid_visible/ply_pdl_0_8.ply",
           "q_base": 0.8,
           "r_bytes": 280.0,
           "d_ms": 2.8,
@@ -154,13 +189,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 5,
-          "quality_label": "PDL_1.0",
+          "candidate_id": "ply_pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_mid_visible/ply_pdl_1_0.ply",
           "q_base": 1.0,
           "r_bytes": 350.0,
           "d_ms": 3.5,
@@ -168,7 +207,8 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         }
       ],
@@ -187,11 +227,14 @@
       "screen_area": 0.08,
       "distance_norm": 6.0,
       "view_context": "full_body_calibration_informed_proxy",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "PDL_0.2",
+          "candidate_id": "ply_pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_far_peripheral/ply_pdl_0_2.ply",
           "q_base": 0.2,
           "r_bytes": 50.0,
           "d_ms": 0.5,
@@ -199,13 +242,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "PDL_0.4",
+          "candidate_id": "ply_pdl_0_4",
           "pdl_ratio": 0.4,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_far_peripheral/ply_pdl_0_4.ply",
           "q_base": 0.4,
           "r_bytes": 100.0,
           "d_ms": 1.0,
@@ -213,13 +260,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "PDL_0.6",
+          "candidate_id": "ply_pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_far_peripheral/ply_pdl_0_6.ply",
           "q_base": 0.6,
           "r_bytes": 150.0,
           "d_ms": 1.5,
@@ -227,13 +278,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 4,
-          "quality_label": "PDL_0.8",
+          "candidate_id": "ply_pdl_0_8",
           "pdl_ratio": 0.8,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_far_peripheral/ply_pdl_0_8.ply",
           "q_base": 0.8,
           "r_bytes": 200.0,
           "d_ms": 2.0,
@@ -241,13 +296,17 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         },
         {
-          "level_id": 5,
-          "quality_label": "PDL_1.0",
+          "candidate_id": "ply_pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "proxy://calibration_informed_proxy/T_far_peripheral/ply_pdl_1_0.ply",
           "q_base": 1.0,
           "r_bytes": 250.0,
           "d_ms": 2.5,
@@ -255,7 +314,8 @@
             "pdl_ratio": "calibrated",
             "q_base": "proxy",
             "r_bytes": "proxy",
-            "d_ms": "proxy"
+            "d_ms": "proxy",
+            "asset_ref": "proxy"
           }
         }
       ],
@@ -274,6 +334,6 @@
       "20260602_161531_longdress_full10",
       "calibration_informed_proxy_fixture"
     ],
-    "notes": "Calibration-informed proxy fixture: lookup caps and normalized-distance support points are calibrated from the full-body strict lookup; tile identity, spatial factors, q_base, r_bytes, d_ms, eta, and Budget_total are proxy values."
+    "notes": "Calibration-informed proxy fixture: lookup PDL caps and normalized-distance support points are calibrated from the full-body strict lookup; tile identity, spatial factors, q_base, r_bytes, d_ms, eta, and Budget_total are proxy values."
   }
 }

@@ -40,15 +40,14 @@ def search_config(
     )
 
 
-def selected_level_pairs(trace_point):
+def selected_candidate_pairs(trace_point):
     return [
-        (item.tile_id, item.selected_level_id)
-        for item in trace_point.selected_levels
+        (item.tile_id, item.selected_candidate_id)
+        for item in trace_point.selected_candidates
     ]
 
 
 def test_handcheck_bracket_finds_first_feasible_positive_lambda() -> None:
-    # Synthetic handcheck data, not real Longdress experiment output.
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
     config = search_config()
@@ -80,15 +79,15 @@ def test_handcheck_bracket_finds_first_feasible_positive_lambda() -> None:
         False,
         True,
     ]
-    assert selected_level_pairs(result.trace[0]) == [
-        ("T1_near_important", 3),
-        ("T2_mid_visible", 2),
-        ("T3_far_capped", 1),
+    assert selected_candidate_pairs(result.trace[0]) == [
+        ("T1_near_important", "pdl_1_0"),
+        ("T2_mid_visible", "pdl_0_6"),
+        ("T3_far_capped", "pdl_0_2"),
     ]
-    assert selected_level_pairs(result.trace[2]) == [
-        ("T1_near_important", 3),
-        ("T2_mid_visible", 1),
-        ("T3_far_capped", 1),
+    assert selected_candidate_pairs(result.trace[2]) == [
+        ("T1_near_important", "pdl_1_0"),
+        ("T2_mid_visible", "pdl_0_2"),
+        ("T3_far_capped", "pdl_0_2"),
     ]
 
 
@@ -260,8 +259,6 @@ def test_lambda_search_config_rejects_invalid_bracket_values(kwargs, expected: s
 
 
 def test_handcheck_trace_total_bytes_do_not_increase_with_lambda() -> None:
-    # This is an observed property of this fixed synthetic fixture, not a proof
-    # over arbitrary future inputs.
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
     config = search_config()

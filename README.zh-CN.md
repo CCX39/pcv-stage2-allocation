@@ -1,249 +1,63 @@
-语言：[English](README.md) | 中文
-
 # pcv-stage2-allocation
 
-`pcv-stage2-allocation` 是硕士课题《轻量级视口感知点云体积视频传输与渲染协同优化》中 Work1 Stage2 的项目工作区。它的目标是在给定视频组总数据预算的前提下，定义、审查并后续实现空间分块质量分配机制。
+本仓库实现 Work1 Stage2 allocation 的低复杂度运行时路径。当前状态为**阶段2B.1：generic transmission candidate 迁移完成**。
 
-当前仓库处于**阶段2A：calibration-informed proxy fixture**。阶段0A已经建立项目骨架与算法契约草案；阶段0A.1冻结预算不可行行为和 `lambda` 搜索规则的 MVP 默认策略；阶段0B新增 Stage2 输入、距离 lookup 和未来结果输出的 Schema 草案；阶段0C新增一个 3 分块、3 档位的极小手算 fixture；阶段0D新增最小 Schema 与手算 fixture 校验脚本；阶段1A新增可复用 Python dataclass、JSON 加载、预处理辅助函数和 handcheck 测试；阶段1B新增固定 `lambda` 下的逐分块选档 candidate 内核；阶段1C新增自适应 `lambda` 上界括区间和 trace 模型；阶段1D新增 bracket 之后的二分搜索和最佳可行 candidate 记录；阶段1E新增 typed `solve_stage2(...)` API 和 JSON-compatible 结构化 result 组装；阶段1F在 lambda-search seed 之后新增剩余预算 local upgrade；阶段1G在 `tests/` 下新增仅供测试使用的小规模 exhaustive oracle，用于 lookup cap 预处理后 tiny instance 的 exact reference；阶段2A新增一组由 Longdress full-body strict lookup cap 支撑、但 tile metadata 明确为 proxy 的 calibration-informed proxy fixture。当前 runtime solver 仍是 Stage2 分配的低复杂度近似路径，不是原始 0-1 MCKP 的精确求解器。
+Stage2 不再把运行时候选解释为连续 PDL 质量档位。每个 tile 现在包含一组通用传输版本候选（generic transmission candidate），候选可以表达 `pdl_ratio`、`file_format`、`codec`、`codec_params`、`asset_ref`、`r_bytes`、`d_ms`、`q_base` 和 `provenance`。
 
-## Work1 结构
+## 当前语义
 
-Work1 采用两阶段决策结构：
+- `candidate_id` 只表示 tile 内候选身份，用于引用和最后稳定平局处理；它不表示质量、数据量、解码耗时或视觉收益顺序。
+- `pdl_ratio` 只用于当前 PDL lookup 投影；它不代表最终视觉质量的全序。
+- PLY 与 DRC 可以在同一 tile、同一 PDL 下作为并列候选存在。
+- `r_bytes`、`d_ms`、`q_base` 的比较只依赖显式数值，不依赖候选数组顺序、`candidate_id`、QP、codec 或 file format。
+- provenance 受控词汇为 `measured`、`calibrated`、`derived`、`proxy`、`synthetic`。
 
-- Stage1 根据网络状态、缓冲区状态和视口内容规模估计当前视频组的总数据预算 `Budget_total`。
-- Stage2 在该总预算约束下，为每个参与决策的空间分块选择一个离散质量档位。
-
-本仓库只负责 Stage2 空间质量分配。未来 Stage1 可以提供 `Budget_total`，但第一版 Stage2 也可以先从配置文件或离线实验输入中读取该预算。
-
-## 与距离标定项目的关系
-
-独立的 `PCV-Distance-Quality-Calibration` 项目提供 Longdress 在当前 Web/Three.js 渲染管线下的离线视距到质量查表依据。该项目不是 Stage2 分配器。
-
-在本仓库中，lookup 资产被视为外部标定输入。当前已经确认的运行时语义是：
+当前启用的 lookup 仍是来自 PLY nested-PDL calibration 的 PDL metadata 上界筛选：
 
 ```text
-lookup_level = 当前距离条件下最高有必要选择的候选质量档位
-allowed_levels = {1, 2, ..., lookup_level}
+allowed_candidate_ids = {candidate | candidate.pdl_ratio <= pdl_max_dist}
 ```
 
-near-field lookup level 5 表示候选上界不裁剪高质量档位，并不表示最终必须选择 level 5。
+启用 PDL lookup 时，参与 lookup 的候选必须显式提供合法 `pdl_ratio`。当前 lookup 不是 DRC-aware 质量测量，也不是最终 QoE 结论。
 
-## 阶段0A.1 默认决策
+## Solver
 
-阶段0A.1 已确认两个 MVP 默认策略：
-
-- 如果 `Budget_total < B_min_feasible`，未来求解器必须显式返回 `INFEASIBLE_BUDGET`。MVP 不允许静默超预算、漏选参与决策的分块、自动放宽 lookup 约束、自动请求 Stage1 修改预算，也不引入空档位或跳过档位。
-- 未来 `lambda` 搜索采用自适应上界，在二分搜索过程中记录预算可行候选，使用确定性平局处理，并且在搜索未完全收敛时也不得输出违反预算的结果。
-
-## 阶段0B Schema 草案
-
-阶段0B新增 JSON Schema Draft 2020-12 文件：
-
-- `schemas/stage2_input.schema.json`
-- `schemas/distance_lookup.schema.json`
-- `schemas/stage2_result.schema.json`
-
-这些 Schema 只定义数据格式，不实现校验器、求解器或实验。
-
-## 阶段0C 手算 Fixture
-
-阶段0C新增 `tests/fixtures/handcheck_3x3/` 合成 fixture 集，包含 success 和 infeasible 输入、合成 lookup profile、预期结果文件，以及中英文手算说明。
-
-该 fixture 用于人工核对和后续求解器验证，不是真实 Longdress 实验数据，也不是正式实验结果。
-
-## 阶段0D 校验脚本
-
-阶段0D新增一个最小脚本，用于把 handcheck fixture JSON 文件与 Schema 草案做校验，并核对手算中的 lookup cap 行为、`B_min_feasible`、success 结果和 infeasible 结果。
-
-在仓库根目录运行：
-
-```powershell
-python -m pip install -r requirements.txt
-python scripts/validate_handcheck_fixtures.py
-```
-
-该脚本只是 fixture 防线，不是 Stage2 求解器。
-
-## 阶段1A Python 模型层
-
-阶段1A新增最小 `pcv_stage2` Python 包，用于表达 Stage2 输入模型、距离 lookup 模型、JSON 加载、lookup cap 预处理、效用计算和 `B_min_feasible` 计算。
-
-在仓库根目录运行：
-
-```powershell
-python -m pytest
-python scripts/validate_handcheck_fixtures.py
-```
-
-阶段1A模型层只是后续搜索内核的准备，不实现 local upgrade、baseline 或 MCKP 求解。
-
-当前 `Stage2Input v0.1` 尚不支持 target-aware lookup。lookup 中非空的 `target_id` 不能被当成 `tile_id` 使用。
-
-fixture 防线脚本继续保留独立校验路径；模型层行为由 `pytest` 单独覆盖。
-
-## 阶段1B固定 Lambda 选档内核
-
-阶段1B新增 `select_fixed_lambda(...)`，用于在固定 `lambda` 下为每个分块从允许候选中选择一个档位，目标为：
+当前 runtime solver 仍是低复杂度近似路径：
 
 ```text
-net_utility_i,j - lambda_value * r_bytes_i,j
+lookup 解析
+-> B_min_feasible 检查
+-> fixed-lambda per-tile argmax
+-> lambda 上界扩展与二分搜索
+-> 最佳预算可行 seed candidate
+-> residual-budget local repair
+-> 结构化 result
 ```
 
-该结果只是 fixed-lambda candidate，不是最终 Stage2 result。它记录总数据量、原始净效用、惩罚后得分，以及当前 candidate 是否满足输入预算。预算可行不能被解释为正式 `SUCCESS`，超预算也不能被解释为正式 `INFEASIBLE_BUDGET`。
-
-阶段1B的固定 `lambda` 组件本身不执行 `lambda` 上界扩展、二分搜索、最佳可行解记录、local upgrade、baseline 或最终求解器组装。
-
-## 阶段1C Lambda 括区间 Trace 内核
-
-阶段1C新增 `bracket_lambda_for_feasible_candidate(...)`，先评估 `lambda = 0`，再持续加倍正 `lambda`，直到找到第一个预算可行 fixed-lambda candidate，或用完 `lambda_max_bracket_steps`。
-
-bracket 输出是 trace 数据，不是最终 Stage2 result。它记录每次 probe 的 `lambda`、总数据量、原始净效用、总解码耗时、预算可行性和选档结果。括区间组件本身不执行二分搜索、最佳可行 candidate 排序、local upgrade、最终 `solve_stage2`，也不组装最终 `SUCCESS` / `INFEASIBLE_BUDGET`。
-
-## 阶段1D Lambda 二分搜索内核
-
-阶段1D新增 `search_lambda_feasible_candidates(...)`。它复用 bracket helper，在一个已知超预算的 lower lambda 和一个已知预算可行的 upper lambda 之间做二分搜索。完整 trace 会连续累积零 `lambda` probe、正 `lambda` bracket probe 和二分 midpoint probe，`step_index` 不会在阶段切换时重置。
-
-搜索结果会按 D0-3 顺序记录当前最佳预算可行 fixed-lambda candidate：先比较总净效用，再在 `score_epsilon` 内近似相同时比较预算利用率，再比较总解码耗时，最后按排序后的 `(tile_id, selected_level_id)` 序列确定性决胜。该结果仍是搜索内核结果，不是最终 Stage2 result，也不能声称为原始 0-1 MCKP 的严格全局最优解。
-
-## 阶段1E 结构化 Solver Result
-
-阶段1E新增 `solve_stage2(stage2_input, lookup, config)`。它先解析 lookup cap 候选并计算 `B_min_feasible`；如果预算低于该最低可行值，则直接返回结构化 `INFEASIBLE_BUDGET`，不进入 lambda search。
-
-对于最低预算可行的输入，它会运行阶段1D lambda search，并组装 `Stage2SolveResult`。`Stage2SolveResult.to_dict()` 返回 JSON-compatible payload，可通过 `schemas/stage2_result.schema.json` 校验。结果包含 selected tiles、lookup resolution、lambda trace、config snapshot、runtime、warnings 和 errors。
-
-本阶段仍未实现精确 MCKP 求解、baseline、Longdress 输入生成、批量实验、绘图、播放器集成、Stage1 在线集成或 JSON 文件输出 CLI。
-
-## 阶段1F 剩余预算 Local Upgrade
-
-阶段1F在 lambda search 返回预算可行 seed candidate 后执行轻量级 local upgrade。seed 始终来自 `lambda_search.best_feasible_iteration`，不是最后一个 trace point。
-
-每个 upgrade step 只能在该 tile 的 `allowed_levels` 内升级，要求增量数据量为正、增量净效用为正且不超过当前剩余预算，然后选择单位预算收益最大的候选；若收益完全相同，按 `(tile_id, target_level_id)` 升序决胜。升级步骤记录在 `local_upgrade.steps[]` 中，不会混入 `lambda_search.iterations[]`，也不会改写 lambda trace。
-
-## 阶段1G Tests-Only Exhaustive Oracle
-
-阶段1G在 `tests/helpers/` 下新增一个小规模 exhaustive oracle，仅用于测试中对 lookup cap 预处理后的 tiny instance 枚举 exact feasible reference。它会枚举每个 tile 的所有允许档位组合，检查同一组预算与 lookup 硬约束，并用于验证 runtime 近似 solver 不超过小规模原始 MCKP 的精确可行参考。
-
-该 oracle 不会被 `src/pcv_stage2/` 导入，不会被 `solve_stage2(...)` 调用，不提供 CLI 或公共 runtime API，也不是正式 baseline。它不得用于大规模输入、批量实验，或论文中对实时方法的算法描述。
-
-## 阶段2A Calibration-Informed Proxy Fixture
-
-阶段2A新增 `tests/fixtures/calibration_informed_proxy/`，这是一组 calibration-informed proxy fixture。lookup 文件使用 `20260602_161531_longdress_full10` 的 Longdress full-body strict 支持点：normalized distance `1.0 -> cap 5`、`3.0 -> cap 3`、`6.0 -> cap 2`，并保持 `semantics = cap` 和 `target_id = null`。
-
-配套 Stage2 输入中的 tile identity、显著性、可见性、屏幕面积、字节规模、解码耗时规模、`q_base`、`eta` 和预算均为 proxy。该 fixture 用于验证 loader/schema 兼容性、calibrated lookup cap 解析、可行与不可行 solver 路径、确定性输出，以及仅在测试中与 exhaustive oracle 比较。它不是真实 Longdress 空间切块输入，不是播放器集成，不是 Stage1 在线输出，也不是正式实验 baseline。
-
-## 当前目录结构
+固定 lambda 下每个 tile 独立选择：
 
 ```text
-pcv-stage2-allocation/
-├─ README.md
-├─ README.zh-CN.md
-├─ .gitignore
-├─ requirements.txt
-├─ docs/
-│  ├─ stage2_mvp_contract.md
-│  ├─ stage2_mvp_contract.zh-CN.md
-│  ├─ decision_log.md
-│  ├─ decision_log.zh-CN.md
-│  ├─ manual_review_checklist.md
-│  ├─ manual_review_checklist.zh-CN.md
-│  ├─ schema_contract.md
-│  ├─ schema_contract.zh-CN.md
-│  ├─ calibration_informed_proxy_fixture.md
-│  ├─ calibration_informed_proxy_fixture.zh-CN.md
-│  ├─ fixed_lambda_selection_contract.md
-│  ├─ fixed_lambda_selection_contract.zh-CN.md
-│  ├─ lambda_bracketing_contract.md
-│  ├─ lambda_bracketing_contract.zh-CN.md
-│  ├─ lambda_bisection_contract.md
-│  ├─ lambda_bisection_contract.zh-CN.md
-│  ├─ final_solver_contract.md
-│  └─ final_solver_contract.zh-CN.md
-├─ schemas/
-│  ├─ stage2_input.schema.json
-│  ├─ distance_lookup.schema.json
-│  ├─ stage2_result.schema.json
-│  └─ .gitkeep
-├─ data/
-│  └─ lookups/
-│     └─ .gitkeep
-├─ tests/
-│  ├─ test_models_handcheck.py
-│  ├─ test_lambda_bracketing.py
-│  ├─ test_lambda_bisection.py
-│  ├─ test_solver_result.py
-│  ├─ test_exhaustive_oracle.py
-│  ├─ test_calibration_informed_proxy_fixture.py
-│  ├─ helpers/
-│  │  └─ exhaustive_oracle.py
-│  └─ fixtures/
-│     ├─ handcheck_3x3/
-│     │  ├─ input_success.json
-│     │  ├─ input_infeasible.json
-│     │  ├─ distance_lookup.json
-│     │  ├─ expected_success_result.json
-│     │  ├─ expected_infeasible_result.json
-│     │  ├─ hand_calculation.md
-│     │  └─ hand_calculation.zh-CN.md
-│     ├─ calibration_informed_proxy/
-│     │  ├─ input_feasible.json
-│     │  ├─ input_infeasible.json
-│     │  └─ distance_lookup_fullbody_strict.json
-│     └─ .gitkeep
-├─ src/
-│  ├─ pcv_stage2/
-│  │  ├─ __init__.py
-│  │  ├─ models.py
-│  │  ├─ preprocess.py
-│  │  ├─ solver.py
-│  │  └─ io.py
-│  └─ .gitkeep
-├─ scripts/
-│  └─ validate_handcheck_fixtures.py
-├─ outputs/
-│  └─ .gitkeep
-└─ reference_docs/
-   └─ 本地只读参考文档
+argmax_j [Uhat_i,j - lambda * R_i,j]
 ```
 
-`reference_docs/` 仅作为本地上下文使用，已加入 Git 忽略规则。
+同分时依次比较 penalized score、较小 `R`、较小 `D`，最后才按 `candidate_id` 稳定决胜。
 
-## 当前已有文档
+local repair 已从旧的“档位升级”改为候选切换。它只考虑满足以下条件的切换：
 
-- [当前实现状态](docs/IMPLEMENTATION_STATE_CURRENT.zh-CN.md)：当前阶段、决策状态、已有资产和下一步建议的快速接手说明。
-- [固定 Lambda 选档契约](docs/fixed_lambda_selection_contract.zh-CN.md)：固定 `lambda` candidate 规则、平局处理和求解器边界。
-- [Lambda 括区间契约](docs/lambda_bracketing_contract.zh-CN.md)：自适应上界括区间、trace 字段和求解器边界。
-- [Lambda 二分搜索契约](docs/lambda_bisection_contract.zh-CN.md)：二分 trace 累积、最佳可行 candidate 排序和求解器边界。
-- [最终 Solver API 契约](docs/final_solver_contract.zh-CN.md)：typed `solve_stage2(...)` API、结构化 result 组装、状态映射和当前求解器边界。
-- [Stage2 MVP Contract](docs/stage2_mvp_contract.md)：计划中的算法契约、模型边界、输入输出概念、不变量和已冻结的 MVP 默认决策。
-- [Schema Contract](docs/schema_contract.md)：说明 Stage2 输入、距离 lookup 和结果输出 Schema 草案。
-- [Calibration-Informed Proxy Fixture 说明](docs/calibration_informed_proxy_fixture.zh-CN.md)：阶段2A calibration-informed proxy fixture 的映射说明、calibrated/proxy 边界和复现方式。
-- [Decision Log](docs/decision_log.md)：lookup 语义、预算不可行行为、乘子搜索规则和数据来源词汇的决策闸门。
-- [Manual Review Checklist](docs/manual_review_checklist.md)：供研究者本人审查阶段0A至阶段0C输出的检查问题。
-- [Handcheck Fixture Notes](tests/fixtures/handcheck_3x3/hand_calculation.md)：合成 3x3 fixture 的手算说明。
-- [Current Implementation State](docs/IMPLEMENTATION_STATE_CURRENT.md)
-- [中文 Stage2 MVP 契约](docs/stage2_mvp_contract.zh-CN.md)
-- [中文 Schema 契约](docs/schema_contract.zh-CN.md)
-- [中文决策记录](docs/decision_log.zh-CN.md)
-- [中文人工验收清单](docs/manual_review_checklist.zh-CN.md)
+```text
+Delta_R > 0
+Delta_Uhat > 0
+Delta_R <= residual_budget
+```
 
-## 当前尚未实现
+repair 不依赖 `candidate_id`、PDL、QP、codec 或 file format 的大小方向，并且不会选择 lookup 已剔除的候选。
 
-本仓库当前没有：
+## 测试资产
 
-- runtime 精确或穷举 MCKP 求解器；
-- baseline 算法；
-- Longdress 输入生成器；
-- 真实 Longdress 空间切块 fixture；
-- 批量实验运行器；
-- 绘图；
-- 通用 JSON 校验器；
-- fixture 生成器；
-- 正式实验结果；
-- Web 播放器集成；
-- Stage1 在线接口。
+- `tests/fixtures/handcheck_3x3/`：合成 3 tile generic-candidate 手算 fixture，保留旧 PDL-only 特例下的数学回归语义。
+- `tests/fixtures/calibration_informed_proxy/`：calibration-informed proxy fixture。lookup 来自 Longdress full-body strict PDL support points，其余 tile metadata、`R`、`D`、`q`、预算与空间因子均为 proxy。
+- `tests/helpers/exhaustive_oracle.py`：仅供测试使用的小规模 exhaustive oracle，用于 tiny instance exact feasible reference；不是 runtime solver，不是 baseline，不用于大规模实验。
 
-因此，不能将本仓库描述为已经完成或已经验证的 Stage2 分配器。
+## 明确未做
 
-## 后续计划
-
-阶段2A经人工审查后，下一步可以规划小型结果检查流程或 solver 输出说明。runtime 精确 MCKP 求解、baseline、真实 Longdress 生成、批量实验、绘图和播放器集成仍不属于当前范围。
+本阶段未接入真实 artifact root，未读取或生成真实 PLY/DRC assets，未构建 frame 1051 正式输入，未测 target-side `D`，未构建 DRC-aware 或 format-aware `q`，未实现 target-aware lookup、Pareto pruning、baseline、批量实验、绘图或播放器接入。

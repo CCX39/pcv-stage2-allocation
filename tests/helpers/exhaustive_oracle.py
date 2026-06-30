@@ -14,12 +14,12 @@ DEFAULT_MAX_ENUMERATED_COMBINATIONS = 100_000
 @dataclass(frozen=True)
 class ExhaustiveOracleSelectedTile:
     tile_id: str
-    selected_level_id: int
+    selected_candidate_id: str
     r_bytes: float
     d_ms: float
     net_utility: float
     spatial_utility: float
-    allowed_levels: tuple[int, ...]
+    allowed_candidate_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class ExhaustiveOracleResult:
     total_decode_ms: float
     budget_utilization: float
     selected_tiles: tuple[ExhaustiveOracleSelectedTile, ...]
-    sorted_selection: tuple[tuple[str, int], ...]
+    sorted_selection: tuple[tuple[str, str], ...]
     combination_count: int
 
 
@@ -95,14 +95,17 @@ def exact_feasible_reference(
     """Enumerate a tiny preprocessed Stage2 instance for tests only.
 
     This helper consumes already-resolved lookup cap data. It deliberately does
-    not call production lambda search, local upgrade, or solve_stage2.
+    not call production lambda search, local repair, or solve_stage2.
     """
 
     resolutions_by_tile = _resolution_by_tile(stage2_input, resolutions)
-    allowed_level_sets = tuple(
-        resolutions_by_tile[tile.tile_id].allowed_levels for tile in stage2_input.tiles
+    allowed_candidate_sets = tuple(
+        resolutions_by_tile[tile.tile_id].allowed_candidate_ids
+        for tile in stage2_input.tiles
     )
-    combination_count = prod(len(allowed_levels) for allowed_levels in allowed_level_sets)
+    combination_count = prod(
+        len(allowed_candidates) for allowed_candidates in allowed_candidate_sets
+    )
 
     if combination_count > max_enumerated_combinations:
         raise ValueError(
@@ -114,50 +117,53 @@ def exact_feasible_reference(
         )
 
     best: ExhaustiveOracleResult | None = None
-    for selected_level_ids in product(*allowed_level_sets):
+    for selected_candidate_ids in product(*allowed_candidate_sets):
         selected_tiles: list[ExhaustiveOracleSelectedTile] = []
         total_bytes = 0.0
         total_net_utility = 0.0
         total_spatial_utility = 0.0
         total_decode_ms = 0.0
 
-        for tile, selected_level_id in zip(
+        for tile, selected_candidate_id in zip(
             stage2_input.tiles,
-            selected_level_ids,
+            selected_candidate_ids,
             strict=True,
         ):
             resolution = resolutions_by_tile[tile.tile_id]
-            level = tile.level_by_id(selected_level_id)
-            spatial_utility = compute_spatial_utility(tile, level)
-            net_utility = compute_net_utility(tile, level, stage2_input.eta)
+            candidate = tile.candidate_by_id(selected_candidate_id)
+            spatial_utility = compute_spatial_utility(tile, candidate)
+            net_utility = compute_net_utility(tile, candidate, stage2_input.eta)
 
             selected_tiles.append(
                 ExhaustiveOracleSelectedTile(
                     tile_id=tile.tile_id,
-                    selected_level_id=selected_level_id,
-                    r_bytes=level.r_bytes,
-                    d_ms=level.d_ms,
+                    selected_candidate_id=selected_candidate_id,
+                    r_bytes=candidate.r_bytes,
+                    d_ms=candidate.d_ms,
                     net_utility=net_utility,
                     spatial_utility=spatial_utility,
-                    allowed_levels=resolution.allowed_levels,
+                    allowed_candidate_ids=resolution.allowed_candidate_ids,
                 )
             )
-            total_bytes += level.r_bytes
+            total_bytes += candidate.r_bytes
             total_net_utility += net_utility
             total_spatial_utility += spatial_utility
-            total_decode_ms += level.d_ms
+            total_decode_ms += candidate.d_ms
 
         if total_bytes > stage2_input.budget_total_bytes:
             continue
 
         sorted_selection = tuple(
-            sorted((tile.tile_id, level_id) for tile, level_id in zip(
-                stage2_input.tiles,
-                selected_level_ids,
-                strict=True,
-            ))
+            sorted(
+                (tile.tile_id, candidate_id)
+                for tile, candidate_id in zip(
+                    stage2_input.tiles,
+                    selected_candidate_ids,
+                    strict=True,
+                )
+            )
         )
-        candidate = ExhaustiveOracleResult(
+        candidate_result = ExhaustiveOracleResult(
             budget_total_bytes=stage2_input.budget_total_bytes,
             total_bytes=total_bytes,
             total_net_utility=total_net_utility,
@@ -173,11 +179,11 @@ def exact_feasible_reference(
         )
 
         if best is None or _candidate_is_better(
-            candidate,
+            candidate_result,
             best,
             score_epsilon=score_epsilon,
         ):
-            best = candidate
+            best = candidate_result
 
     if best is None:
         raise ValueError(

@@ -5,6 +5,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+PROVENANCE_TERMS = frozenset({"measured", "calibrated", "derived", "proxy", "synthetic"})
+REQUIRED_CANDIDATE_PROVENANCE_FIELDS = frozenset(
+    {"r_bytes", "d_ms", "q_base", "pdl_ratio", "asset_ref"}
+)
+
+
 def _as_tuple(items: tuple[Any, ...] | list[Any]) -> tuple[Any, ...]:
     return tuple(items)
 
@@ -13,19 +19,82 @@ def _is_real_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def _require_finite_non_negative(value: float, name: str) -> None:
+    if not _is_real_number(value) or not math.isfinite(value) or value < 0:
+        raise ValueError(f"{name} must be finite and non-negative, got {value!r}")
+
+
+def _require_non_empty_string(value: str, name: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{name} must be a non-empty string")
+
+
+def _validate_provenance_map(provenance: dict[str, str], *, context: str) -> None:
+    for key, value in provenance.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError(f"{context} provenance keys must be non-empty strings")
+        if value not in PROVENANCE_TERMS:
+            raise ValueError(
+                f"{context} provenance value for {key!r} must be one of "
+                f"{sorted(PROVENANCE_TERMS)}, got {value!r}"
+            )
+
+
 @dataclass(frozen=True)
-class QualityLevel:
-    level_id: int
-    quality_label: str
-    pdl_ratio: float
+class TransmissionCandidate:
+    candidate_id: str
+    file_format: str
+    codec: str
+    codec_params: dict[str, Any]
+    asset_ref: str
     q_base: float
     r_bytes: float
     d_ms: float
-    provenance: dict[str, str] = field(default_factory=dict)
+    provenance: dict[str, str]
+    pdl_ratio: float | None = None
 
     def __post_init__(self) -> None:
-        if self.level_id < 1:
-            raise ValueError(f"level_id must be >= 1, got {self.level_id}")
+        _require_non_empty_string(self.candidate_id, "candidate_id")
+        _require_non_empty_string(self.file_format, "file_format")
+        _require_non_empty_string(self.codec, "codec")
+        _require_non_empty_string(self.asset_ref, "asset_ref")
+        object.__setattr__(self, "codec_params", dict(self.codec_params))
+        object.__setattr__(self, "provenance", dict(self.provenance))
+        _require_finite_non_negative(self.q_base, "q_base")
+        _require_finite_non_negative(self.r_bytes, "r_bytes")
+        _require_finite_non_negative(self.d_ms, "d_ms")
+        if self.pdl_ratio is not None:
+            if (
+                not _is_real_number(self.pdl_ratio)
+                or not math.isfinite(self.pdl_ratio)
+                or self.pdl_ratio <= 0
+                or self.pdl_ratio > 1
+            ):
+                raise ValueError(
+                    "pdl_ratio must be finite and in (0, 1] when present, "
+                    f"got {self.pdl_ratio!r}"
+                )
+        _validate_provenance_map(self.provenance, context=self.candidate_id)
+        missing = REQUIRED_CANDIDATE_PROVENANCE_FIELDS - set(self.provenance)
+        if missing:
+            raise ValueError(
+                f"{self.candidate_id} provenance must include "
+                f"{sorted(REQUIRED_CANDIDATE_PROVENANCE_FIELDS)}, missing {sorted(missing)}"
+            )
+
+    def to_snapshot(self) -> dict[str, Any]:
+        return {
+            "candidate_id": self.candidate_id,
+            "pdl_ratio": self.pdl_ratio,
+            "file_format": self.file_format,
+            "codec": self.codec,
+            "codec_params": _json_compatible(self.codec_params),
+            "asset_ref": self.asset_ref,
+            "r_bytes": self.r_bytes,
+            "d_ms": self.d_ms,
+            "q_base": self.q_base,
+            "provenance": dict(self.provenance),
+        }
 
 
 @dataclass(frozen=True)
@@ -36,35 +105,32 @@ class Tile:
     screen_area: float
     distance_norm: float
     view_context: str
-    levels: tuple[QualityLevel, ...]
+    candidates: tuple[TransmissionCandidate, ...]
     provenance: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "levels", _as_tuple(self.levels))
-        if not self.levels:
-            raise ValueError(f"{self.tile_id} must contain at least one quality level")
+        _require_non_empty_string(self.tile_id, "tile_id")
+        _require_non_empty_string(self.view_context, "view_context")
+        _require_finite_non_negative(self.p_sal, f"{self.tile_id}.p_sal")
+        _require_finite_non_negative(self.visibility, f"{self.tile_id}.visibility")
+        _require_finite_non_negative(self.screen_area, f"{self.tile_id}.screen_area")
+        if not math.isfinite(self.distance_norm):
+            raise ValueError(f"{self.tile_id}.distance_norm must be finite")
+        object.__setattr__(self, "candidates", _as_tuple(self.candidates))
+        object.__setattr__(self, "provenance", dict(self.provenance))
+        if not self.candidates:
+            raise ValueError(f"{self.tile_id} must contain at least one candidate")
 
-        level_ids = sorted(level.level_id for level in self.levels)
-        if len(level_ids) != len(set(level_ids)):
-            raise ValueError(f"{self.tile_id} has duplicate level_id values")
+        candidate_ids = [candidate.candidate_id for candidate in self.candidates]
+        if len(candidate_ids) != len(set(candidate_ids)):
+            raise ValueError(f"{self.tile_id} has duplicate candidate_id values")
+        _validate_provenance_map(self.provenance, context=self.tile_id)
 
-        expected = list(range(1, max(level_ids) + 1))
-        if level_ids != expected:
-            raise ValueError(
-                f"{self.tile_id} level_id values must be contiguous from 1 "
-                f"for the current MVP/handcheck fixture constraint: "
-                f"expected {expected}, got {level_ids}"
-            )
-
-    @property
-    def max_level_id(self) -> int:
-        return max(level.level_id for level in self.levels)
-
-    def level_by_id(self, level_id: int) -> QualityLevel:
-        for level in self.levels:
-            if level.level_id == level_id:
-                return level
-        raise KeyError(f"{self.tile_id} does not define level_id {level_id}")
+    def candidate_by_id(self, candidate_id: str) -> TransmissionCandidate:
+        for candidate in self.candidates:
+            if candidate.candidate_id == candidate_id:
+                return candidate
+        raise KeyError(f"{self.tile_id} does not define candidate_id {candidate_id!r}")
 
 
 @dataclass(frozen=True)
@@ -103,24 +169,39 @@ class LookupRule:
     view_context: str
     target_id: str | None
     distance_match: LookupDistanceMatch
-    lookup_level: int
+    pdl_max_dist: float
     threshold_profile: str
     notes: str | None = None
 
     def __post_init__(self) -> None:
-        if self.lookup_level < 1:
-            raise ValueError(f"{self.rule_id} lookup_level must be >= 1")
+        _require_non_empty_string(self.rule_id, "rule_id")
+        _require_non_empty_string(self.view_context, "view_context")
+        _require_non_empty_string(self.threshold_profile, "threshold_profile")
+        if (
+            not _is_real_number(self.pdl_max_dist)
+            or not math.isfinite(self.pdl_max_dist)
+            or self.pdl_max_dist <= 0
+            or self.pdl_max_dist > 1
+        ):
+            raise ValueError(
+                f"{self.rule_id} pdl_max_dist must be finite and in (0, 1], "
+                f"got {self.pdl_max_dist!r}"
+            )
 
 
 @dataclass(frozen=True)
-class LookupQualityLevel:
-    level_id: int
+class LookupPdlSupport:
     pdl_ratio: float
     quality_label: str
 
     def __post_init__(self) -> None:
-        if self.level_id < 1:
-            raise ValueError(f"lookup quality level_id must be >= 1, got {self.level_id}")
+        if (
+            not _is_real_number(self.pdl_ratio)
+            or not math.isfinite(self.pdl_ratio)
+            or self.pdl_ratio <= 0
+            or self.pdl_ratio > 1
+        ):
+            raise ValueError(f"lookup pdl_ratio must be finite and in (0, 1]")
 
 
 @dataclass(frozen=True)
@@ -129,12 +210,13 @@ class DistanceLookup:
     lookup_profile_id: str
     semantics: str
     distance_unit: str
-    quality_levels: tuple[LookupQualityLevel, ...]
+    pdl_support: tuple[LookupPdlSupport, ...]
     source: dict[str, Any]
     rules: tuple[LookupRule, ...]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "quality_levels", _as_tuple(self.quality_levels))
+        object.__setattr__(self, "pdl_support", _as_tuple(self.pdl_support))
+        object.__setattr__(self, "source", dict(self.source))
         object.__setattr__(self, "rules", _as_tuple(self.rules))
         if not self.rules:
             raise ValueError(f"{self.lookup_profile_id} must contain at least one lookup rule")
@@ -153,6 +235,7 @@ class Stage2Input:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "tiles", _as_tuple(self.tiles))
+        object.__setattr__(self, "provenance_summary", dict(self.provenance_summary))
         if not self.tiles:
             raise ValueError(f"{self.scenario_id} must contain at least one tile")
 
@@ -172,34 +255,36 @@ class LookupResolution:
     tile_id: str
     lookup_profile_id: str
     matched_rule_id: str
-    lookup_level: int
-    allowed_levels: tuple[int, ...]
+    pdl_max_dist: float
+    allowed_candidate_ids: tuple[str, ...]
+    rejected_candidate_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "allowed_levels", _as_tuple(self.allowed_levels))
-        if not self.allowed_levels:
-            raise ValueError(f"{self.tile_id} has no allowed levels")
+        object.__setattr__(self, "allowed_candidate_ids", _as_tuple(self.allowed_candidate_ids))
+        object.__setattr__(self, "rejected_candidate_ids", _as_tuple(self.rejected_candidate_ids))
+        if not self.allowed_candidate_ids:
+            raise ValueError(f"{self.tile_id} has no allowed candidates")
 
 
 @dataclass(frozen=True)
 class FixedLambdaTileSelection:
     lambda_value: float
     tile_id: str
-    allowed_level_ids: tuple[int, ...]
-    selected_level_id: int
+    allowed_candidate_ids: tuple[str, ...]
+    selected_candidate_id: str
     selected_r_bytes: float
     selected_d_ms: float
     selected_net_utility: float
     selected_penalized_score: float
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "allowed_level_ids", _as_tuple(self.allowed_level_ids))
-        if not self.allowed_level_ids:
-            raise ValueError(f"{self.tile_id} has no allowed levels")
-        if self.selected_level_id not in self.allowed_level_ids:
+        object.__setattr__(self, "allowed_candidate_ids", _as_tuple(self.allowed_candidate_ids))
+        if not self.allowed_candidate_ids:
+            raise ValueError(f"{self.tile_id} has no allowed candidates")
+        if self.selected_candidate_id not in self.allowed_candidate_ids:
             raise ValueError(
-                f"{self.tile_id} selected level {self.selected_level_id} "
-                "is outside allowed_level_ids"
+                f"{self.tile_id} selected candidate {self.selected_candidate_id!r} "
+                "is outside allowed_candidate_ids"
             )
 
 
@@ -276,16 +361,13 @@ class LambdaSearchConfig:
 
 
 @dataclass(frozen=True)
-class LambdaSelectedLevel:
+class LambdaSelectedCandidate:
     tile_id: str
-    selected_level_id: int
+    selected_candidate_id: str
 
     def __post_init__(self) -> None:
-        if self.selected_level_id < 1:
-            raise ValueError(
-                f"{self.tile_id} selected_level_id must be >= 1, "
-                f"got {self.selected_level_id}"
-            )
+        _require_non_empty_string(self.tile_id, "tile_id")
+        _require_non_empty_string(self.selected_candidate_id, "selected_candidate_id")
 
 
 @dataclass(frozen=True)
@@ -296,10 +378,10 @@ class LambdaTracePoint:
     total_net_utility: float
     total_decode_ms: float
     is_budget_feasible: bool
-    selected_levels: tuple[LambdaSelectedLevel, ...]
+    selected_candidates: tuple[LambdaSelectedCandidate, ...]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "selected_levels", _as_tuple(self.selected_levels))
+        object.__setattr__(self, "selected_candidates", _as_tuple(self.selected_candidates))
         if self.step_index < 0:
             raise ValueError(f"step_index must be >= 0, got {self.step_index}")
         if not math.isfinite(self.lambda_value) or self.lambda_value < 0:
@@ -391,10 +473,10 @@ class LambdaSearchResult:
                 selection.selected_d_ms
                 for selection in self.best_feasible_candidate.tile_selections
             )
-            candidate_selected_levels = tuple(
-                LambdaSelectedLevel(
+            candidate_selected_candidates = tuple(
+                LambdaSelectedCandidate(
                     tile_id=selection.tile_id,
-                    selected_level_id=selection.selected_level_id,
+                    selected_candidate_id=selection.selected_candidate_id,
                 )
                 for selection in self.best_feasible_candidate.tile_selections
             )
@@ -412,7 +494,7 @@ class LambdaSearchResult:
                     self.best_feasible_candidate.total_net_utility,
                 )
                 and _float_close(trace_point.total_decode_ms, candidate_decode_ms)
-                and trace_point.selected_levels == candidate_selected_levels
+                and trace_point.selected_candidates == candidate_selected_candidates
             ):
                 raise ValueError(
                     "best_feasible_candidate must match the referenced trace point"
@@ -446,25 +528,34 @@ class Stage2Message:
 @dataclass(frozen=True)
 class Stage2SelectedTile:
     tile_id: str
-    selected_level_id: int
+    selected_candidate_id: str
+    selected_candidate_snapshot: dict[str, Any]
     r_bytes: float
     d_ms: float
     net_utility: float
     spatial_utility: float
-    allowed_levels: tuple[int, ...]
+    allowed_candidate_ids: tuple[str, ...]
+    rejected_candidate_ids: tuple[str, ...]
+    lookup_pdl_max_dist: float
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "allowed_levels", _as_tuple(self.allowed_levels))
+        object.__setattr__(self, "allowed_candidate_ids", _as_tuple(self.allowed_candidate_ids))
+        object.__setattr__(self, "rejected_candidate_ids", _as_tuple(self.rejected_candidate_ids))
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "tile_id": self.tile_id,
-            "selected_level_id": self.selected_level_id,
+            "selected_candidate_id": self.selected_candidate_id,
+            "selected_candidate_snapshot": _json_compatible(
+                self.selected_candidate_snapshot
+            ),
             "r_bytes": self.r_bytes,
             "d_ms": self.d_ms,
             "net_utility": self.net_utility,
             "spatial_utility": self.spatial_utility,
-            "allowed_levels": list(self.allowed_levels),
+            "allowed_candidate_ids": list(self.allowed_candidate_ids),
+            "rejected_candidate_ids": list(self.rejected_candidate_ids),
+            "lookup_pdl_max_dist": self.lookup_pdl_max_dist,
         }
 
 
@@ -472,27 +563,33 @@ class Stage2SelectedTile:
 class Stage2LocalUpgradeStep:
     step_index: int
     tile_id: str
-    from_level_id: int
-    to_level_id: int
+    from_candidate_id: str
+    to_candidate_id: str
     delta_r_bytes: float
     delta_net_utility: float
     gain_per_byte: float
+    residual_budget_before: float
+    residual_budget_after: float
     total_bytes_after: float
     total_net_utility_after: float
     total_decode_ms_after: float
+    selection_reason: str = "max_gain_per_byte_candidate_switch"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "step_index": self.step_index,
             "tile_id": self.tile_id,
-            "from_level_id": self.from_level_id,
-            "to_level_id": self.to_level_id,
+            "from_candidate_id": self.from_candidate_id,
+            "to_candidate_id": self.to_candidate_id,
             "delta_r_bytes": self.delta_r_bytes,
             "delta_net_utility": self.delta_net_utility,
             "gain_per_byte": self.gain_per_byte,
+            "residual_budget_before": self.residual_budget_before,
+            "residual_budget_after": self.residual_budget_after,
             "total_bytes_after": self.total_bytes_after,
             "total_net_utility_after": self.total_net_utility_after,
             "total_decode_ms_after": self.total_decode_ms_after,
+            "selection_reason": self.selection_reason,
         }
 
 
@@ -570,8 +667,9 @@ class Stage2SolveResult:
                     "tile_id": item.tile_id,
                     "lookup_profile_id": item.lookup_profile_id,
                     "matched_rule_id": item.matched_rule_id,
-                    "lookup_level": item.lookup_level,
-                    "allowed_levels": list(item.allowed_levels),
+                    "pdl_max_dist": item.pdl_max_dist,
+                    "allowed_candidate_ids": list(item.allowed_candidate_ids),
+                    "rejected_candidate_ids": list(item.rejected_candidate_ids),
                 }
                 for item in self.lookup_resolution
             ],

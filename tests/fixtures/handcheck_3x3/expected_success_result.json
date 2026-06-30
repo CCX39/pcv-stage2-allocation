@@ -1,82 +1,155 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "scenario_id": "handcheck_3x3_success",
   "status": "SUCCESS",
   "budget_total_bytes": 210,
-  "b_min_feasible": 120,
-  "budget_gap": 0,
-  "total_bytes": 200,
+  "b_min_feasible": 120.0,
+  "budget_gap": 0.0,
+  "total_bytes": 200.0,
   "total_net_utility": 39.5,
-  "total_spatial_utility": 40,
-  "total_decode_ms": 5,
-  "budget_utilization": 0.9523809524,
+  "total_spatial_utility": 40.0,
+  "total_decode_ms": 5.0,
+  "budget_utilization": 0.9523809523809523,
   "selected_tiles": [
     {
       "tile_id": "T1_near_important",
-      "selected_level_id": 3,
+      "selected_candidate_id": "pdl_1_0",
+      "selected_candidate_snapshot": {
+        "candidate_id": "pdl_1_0",
+        "pdl_ratio": 1.0,
+        "file_format": "ply",
+        "codec": "raw_ply",
+        "codec_params": {},
+        "asset_ref": "synthetic://handcheck_3x3/T1_near_important/pdl_1_0.ply",
+        "q_base": 3,
+        "r_bytes": 130,
+        "d_ms": 3,
+        "provenance": {
+          "pdl_ratio": "synthetic",
+          "q_base": "synthetic",
+          "r_bytes": "synthetic",
+          "d_ms": "synthetic",
+          "asset_ref": "synthetic"
+        }
+      },
       "r_bytes": 130,
       "d_ms": 3,
       "net_utility": 29.7,
       "spatial_utility": 30,
-      "allowed_levels": [
-        1,
-        2,
-        3
-      ]
+      "allowed_candidate_ids": [
+        "pdl_0_2",
+        "pdl_0_6",
+        "pdl_1_0"
+      ],
+      "rejected_candidate_ids": [],
+      "lookup_pdl_max_dist": 1.0
     },
     {
       "tile_id": "T2_mid_visible",
-      "selected_level_id": 1,
+      "selected_candidate_id": "pdl_0_2",
+      "selected_candidate_snapshot": {
+        "candidate_id": "pdl_0_2",
+        "pdl_ratio": 0.2,
+        "file_format": "ply",
+        "codec": "raw_ply",
+        "codec_params": {},
+        "asset_ref": "synthetic://handcheck_3x3/T2_mid_visible/pdl_0_2.ply",
+        "q_base": 1,
+        "r_bytes": 40,
+        "d_ms": 1,
+        "provenance": {
+          "pdl_ratio": "synthetic",
+          "q_base": "synthetic",
+          "r_bytes": "synthetic",
+          "d_ms": "synthetic",
+          "asset_ref": "synthetic"
+        }
+      },
       "r_bytes": 40,
       "d_ms": 1,
       "net_utility": 5.9,
       "spatial_utility": 6,
-      "allowed_levels": [
-        1,
-        2
-      ]
+      "allowed_candidate_ids": [
+        "pdl_0_2",
+        "pdl_0_6"
+      ],
+      "rejected_candidate_ids": [
+        "pdl_1_0"
+      ],
+      "lookup_pdl_max_dist": 0.6
     },
     {
       "tile_id": "T3_far_capped",
-      "selected_level_id": 1,
+      "selected_candidate_id": "pdl_0_2",
+      "selected_candidate_snapshot": {
+        "candidate_id": "pdl_0_2",
+        "pdl_ratio": 0.2,
+        "file_format": "ply",
+        "codec": "raw_ply",
+        "codec_params": {},
+        "asset_ref": "synthetic://handcheck_3x3/T3_far_capped/pdl_0_2.ply",
+        "q_base": 1,
+        "r_bytes": 30,
+        "d_ms": 1,
+        "provenance": {
+          "pdl_ratio": "synthetic",
+          "q_base": "synthetic",
+          "r_bytes": "synthetic",
+          "d_ms": "synthetic",
+          "asset_ref": "synthetic"
+        }
+      },
       "r_bytes": 30,
       "d_ms": 1,
       "net_utility": 3.9,
       "spatial_utility": 4,
-      "allowed_levels": [
-        1
-      ]
+      "allowed_candidate_ids": [
+        "pdl_0_2"
+      ],
+      "rejected_candidate_ids": [
+        "pdl_0_6",
+        "pdl_1_0"
+      ],
+      "lookup_pdl_max_dist": 0.2
     }
   ],
   "lookup_resolution": [
     {
       "tile_id": "T1_near_important",
-      "lookup_profile_id": "handcheck_lookup_cap_v1",
-      "matched_rule_id": "rule_full_body_d1_cap3",
-      "lookup_level": 3,
-      "allowed_levels": [
-        1,
-        2,
-        3
-      ]
+      "lookup_profile_id": "handcheck_lookup_cap_v2",
+      "matched_rule_id": "rule_full_body_d1_pdl1_0",
+      "pdl_max_dist": 1.0,
+      "allowed_candidate_ids": [
+        "pdl_0_2",
+        "pdl_0_6",
+        "pdl_1_0"
+      ],
+      "rejected_candidate_ids": []
     },
     {
       "tile_id": "T2_mid_visible",
-      "lookup_profile_id": "handcheck_lookup_cap_v1",
-      "matched_rule_id": "rule_full_body_d3_cap2",
-      "lookup_level": 2,
-      "allowed_levels": [
-        1,
-        2
+      "lookup_profile_id": "handcheck_lookup_cap_v2",
+      "matched_rule_id": "rule_full_body_d3_pdl0_6",
+      "pdl_max_dist": 0.6,
+      "allowed_candidate_ids": [
+        "pdl_0_2",
+        "pdl_0_6"
+      ],
+      "rejected_candidate_ids": [
+        "pdl_1_0"
       ]
     },
     {
       "tile_id": "T3_far_capped",
-      "lookup_profile_id": "handcheck_lookup_cap_v1",
-      "matched_rule_id": "rule_full_body_d6_cap1",
-      "lookup_level": 1,
-      "allowed_levels": [
-        1
+      "lookup_profile_id": "handcheck_lookup_cap_v2",
+      "matched_rule_id": "rule_full_body_d6_pdl0_2",
+      "pdl_max_dist": 0.2,
+      "allowed_candidate_ids": [
+        "pdl_0_2"
+      ],
+      "rejected_candidate_ids": [
+        "pdl_0_6",
+        "pdl_1_0"
       ]
     }
   ],
@@ -100,17 +173,7 @@
     "termination_reason": "NOT_RUN"
   },
   "runtime_ms": null,
-  "config_snapshot": {
-    "reference_type": "manual_handcheck",
-    "eta": 0.1,
-    "g_distance": 1.0,
-    "notes": "Expected result is a manual reference, not a solver trace."
-  },
-  "warnings": [
-    {
-      "code": "MANUAL_HANDCHECK_REFERENCE",
-      "message": "lambda_search is disabled because this file records a manual expected result."
-    }
-  ],
+  "config_snapshot": {},
+  "warnings": [],
   "errors": []
 }

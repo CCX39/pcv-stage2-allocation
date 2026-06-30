@@ -9,9 +9,14 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
+TESTS = ROOT / "tests"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
+if str(TESTS) not in sys.path:
+    sys.path.insert(0, str(TESTS))
 
+from helpers.generic_cases import candidate, lookup_for_tiles, stage2_case, tile
+from pcv_stage2 import solver as solver_module
 from pcv_stage2.io import load_distance_lookup, load_stage2_input
 from pcv_stage2.models import (
     DistanceLookup,
@@ -19,16 +24,11 @@ from pcv_stage2.models import (
     FixedLambdaTileSelection,
     LambdaSearchConfig,
     LambdaSearchResult,
-    LambdaSelectedLevel,
+    LambdaSelectedCandidate,
     LambdaTracePoint,
     LookupDistanceMatch,
-    LookupQualityLevel,
     LookupRule,
-    QualityLevel,
-    Stage2Input,
-    Tile,
 )
-from pcv_stage2 import solver as solver_module
 from pcv_stage2.solver import InternalSolverInvariantError, solve_stage2
 
 
@@ -64,91 +64,55 @@ def assert_schema_valid(payload: dict) -> None:
     Draft202012Validator(schema).validate(payload)
 
 
-def selected_level_map(payload: dict) -> dict[str, int]:
+def selected_candidate_map(payload: dict) -> dict[str, str]:
     return {
-        item["tile_id"]: item["selected_level_id"]
+        item["tile_id"]: item["selected_candidate_id"]
         for item in payload["selected_tiles"]
     }
 
 
-def synthetic_upgrade_case() -> tuple[Stage2Input, DistanceLookup]:
-    # Synthetic unit-test-only data, not real Longdress experiment output.
-    def tile(tile_id: str, distance_norm: float) -> Tile:
-        return Tile(
-            tile_id=tile_id,
-            p_sal=1.0,
-            visibility=1.0,
-            screen_area=1.0,
-            distance_norm=distance_norm,
-            view_context="synthetic_full_body",
-            levels=(
-                QualityLevel(
-                    level_id=1,
-                    quality_label="L1",
-                    pdl_ratio=0.5,
-                    q_base=50.0,
-                    r_bytes=50.0,
-                    d_ms=1.0,
-                ),
-                QualityLevel(
-                    level_id=2,
-                    quality_label="L2",
-                    pdl_ratio=1.0,
+def synthetic_switch_case():
+    tiles = (
+        tile(
+            "A_tile",
+            distance_norm=1.0,
+            candidates=(
+                candidate("z_seed", pdl_ratio=0.4, q_base=50.0, r_bytes=50.0),
+                candidate(
+                    "a_switch",
+                    pdl_ratio=0.2,
                     q_base=60.0,
                     r_bytes=110.0,
                     d_ms=2.0,
                 ),
             ),
-        )
-
-    stage2_input = Stage2Input(
-        schema_version="0.1.0",
-        scenario_id="synthetic_local_upgrade_tie",
+        ),
+        tile(
+            "B_tile",
+            distance_norm=2.0,
+            candidates=(
+                candidate("z_seed", pdl_ratio=0.4, q_base=50.0, r_bytes=50.0),
+                candidate(
+                    "b_switch",
+                    pdl_ratio=0.2,
+                    q_base=60.0,
+                    r_bytes=110.0,
+                    d_ms=2.0,
+                ),
+            ),
+        ),
+    )
+    stage2_input = stage2_case(
+        scenario_id="synthetic_local_switch_tie",
         budget_total_bytes=160.0,
         eta=0.0,
-        lookup_profile_id="synthetic_upgrade_lookup",
-        tiles=(tile("A_tile", 1.0), tile("B_tile", 2.0)),
-        provenance_summary={
-            "default_type": "synthetic",
-            "source_ids": ["test_solver_result"],
-        },
-        description="Synthetic local-upgrade tie case.",
+        lookup_profile_id="synthetic_switch_lookup",
+        tiles=tiles,
     )
-    lookup = DistanceLookup(
-        schema_version="0.1.0",
-        lookup_profile_id="synthetic_upgrade_lookup",
-        semantics="cap",
-        distance_unit="normalized_render_distance",
-        quality_levels=(
-            LookupQualityLevel(level_id=1, pdl_ratio=0.5, quality_label="L1"),
-            LookupQualityLevel(level_id=2, pdl_ratio=1.0, quality_label="L2"),
-        ),
-        source={
-            "dataset": "synthetic",
-            "renderer": "synthetic",
-            "metric": "synthetic",
-            "threshold_profile": "synthetic",
-            "source_runs": [],
-            "notes": "Unit-test-only local upgrade fixture.",
-        },
-        rules=(
-            LookupRule(
-                rule_id="rule_a_cap2",
-                view_context="synthetic_full_body",
-                target_id=None,
-                distance_match=LookupDistanceMatch(exact_distance=1.0),
-                lookup_level=2,
-                threshold_profile="synthetic",
-            ),
-            LookupRule(
-                rule_id="rule_b_cap2",
-                view_context="synthetic_full_body",
-                target_id=None,
-                distance_match=LookupDistanceMatch(exact_distance=2.0),
-                lookup_level=2,
-                threshold_profile="synthetic",
-            ),
-        ),
+    lookup = lookup_for_tiles(
+        profile_id="synthetic_switch_lookup",
+        tiles=tiles,
+        pdl_max_by_tile={"A_tile": 0.4, "B_tile": 0.4},
     )
     return stage2_input, lookup
 
@@ -156,18 +120,16 @@ def synthetic_upgrade_case() -> tuple[Stage2Input, DistanceLookup]:
 def test_solver_success_matches_handcheck_and_schema() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    expected_manual = load_json(FIXTURE / "expected_success_result.json")
 
     result = solve_stage2(stage2_input, lookup, search_config())
     payload = result.to_dict()
 
     assert payload["status"] == "SUCCESS"
-    assert selected_level_map(payload) == {
-        "T1_near_important": 3,
-        "T2_mid_visible": 1,
-        "T3_far_capped": 1,
+    assert selected_candidate_map(payload) == {
+        "T1_near_important": "pdl_1_0",
+        "T2_mid_visible": "pdl_0_2",
+        "T3_far_capped": "pdl_0_2",
     }
-    assert selected_level_map(payload) == selected_level_map(expected_manual)
     assert payload["total_bytes"] == pytest.approx(200)
     assert payload["total_net_utility"] == pytest.approx(39.5)
     assert payload["total_spatial_utility"] == pytest.approx(40)
@@ -179,30 +141,22 @@ def test_solver_success_matches_handcheck_and_schema() -> None:
     assert payload["lambda_search"]["best_feasible_iteration"] is not None
     assert payload["local_upgrade"]["enabled"] is True
     assert payload["local_upgrade"]["steps"] == []
-    assert (
-        payload["local_upgrade"]["termination_reason"]
-        == "NO_FEASIBLE_POSITIVE_UPGRADE"
-    )
+    assert payload["local_upgrade"]["termination_reason"] == "NO_FEASIBLE_POSITIVE_SWITCH"
     assert payload["local_upgrade"]["initial_total_bytes"] == pytest.approx(200)
     assert payload["local_upgrade"]["initial_total_net_utility"] == pytest.approx(39.5)
 
-    allowed_by_tile = {
-        item["tile_id"]: set(item["allowed_levels"])
-        for item in payload["selected_tiles"]
-    }
-    for tile_id, selected_level_id in selected_level_map(payload).items():
-        assert selected_level_id in allowed_by_tile[tile_id]
-    assert selected_level_map(payload)["T3_far_capped"] == 1
-    assert all(
-        step["tile_id"] != "T3_far_capped"
-        for step in payload["local_upgrade"]["steps"]
-    )
+    for item in payload["selected_tiles"]:
+        assert item["selected_candidate_id"] in item["allowed_candidate_ids"]
+        snapshot = item["selected_candidate_snapshot"]
+        assert snapshot["candidate_id"] == item["selected_candidate_id"]
+        assert snapshot["provenance"]["r_bytes"] == "synthetic"
+    assert selected_candidate_map(payload)["T3_far_capped"] == "pdl_0_2"
 
     assert_schema_valid(payload)
 
 
-def test_solver_local_upgrade_applies_residual_budget_and_preserves_trace() -> None:
-    stage2_input, lookup = synthetic_upgrade_case()
+def test_solver_local_repair_applies_candidate_switch_and_preserves_trace() -> None:
+    stage2_input, lookup = synthetic_switch_case()
 
     result = solve_stage2(stage2_input, lookup, search_config())
     payload = result.to_dict()
@@ -220,18 +174,20 @@ def test_solver_local_upgrade_applies_residual_budget_and_preserves_trace() -> N
     step = payload["local_upgrade"]["steps"][0]
     assert step["step_index"] == 0
     assert step["tile_id"] == "A_tile"
-    assert step["from_level_id"] == 1
-    assert step["to_level_id"] == 2
+    assert step["from_candidate_id"] == "z_seed"
+    assert step["to_candidate_id"] == "a_switch"
     assert step["delta_r_bytes"] == pytest.approx(60)
     assert step["delta_net_utility"] == pytest.approx(10)
     assert step["gain_per_byte"] == pytest.approx(10 / 60)
+    assert step["residual_budget_before"] == pytest.approx(60)
+    assert step["residual_budget_after"] == pytest.approx(0)
     assert step["total_bytes_after"] == pytest.approx(160)
     assert step["total_net_utility_after"] == pytest.approx(110)
     assert step["total_decode_ms_after"] == pytest.approx(3)
 
-    assert selected_level_map(payload) == {
-        "A_tile": 2,
-        "B_tile": 1,
+    assert selected_candidate_map(payload) == {
+        "A_tile": "a_switch",
+        "B_tile": "z_seed",
     }
     assert payload["total_bytes"] == pytest.approx(160)
     assert payload["total_bytes"] <= payload["budget_total_bytes"]
@@ -242,15 +198,15 @@ def test_solver_local_upgrade_applies_residual_budget_and_preserves_trace() -> N
     seed_index = payload["lambda_search"]["best_feasible_iteration"]
     seed_trace = payload["lambda_search"]["iterations"][seed_index]
     assert {
-        item["tile_id"]: item["selected_level_id"]
-        for item in seed_trace["selected_levels"]
+        item["tile_id"]: item["selected_candidate_id"]
+        for item in seed_trace["selected_candidates"]
     } == {
-        "A_tile": 1,
-        "B_tile": 1,
+        "A_tile": "z_seed",
+        "B_tile": "z_seed",
     }
-    assert selected_level_map(payload) != {
-        item["tile_id"]: item["selected_level_id"]
-        for item in seed_trace["selected_levels"]
+    assert selected_candidate_map(payload) != {
+        item["tile_id"]: item["selected_candidate_id"]
+        for item in seed_trace["selected_candidates"]
     }
 
     assert_schema_valid(payload)
@@ -309,7 +265,7 @@ def test_solver_bracket_failure_returns_numerical_error_with_trace() -> None:
     assert_schema_valid(payload)
 
 
-def test_solver_returns_structured_internal_violation_when_local_upgrade_fails(
+def test_solver_returns_structured_internal_violation_when_local_repair_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
@@ -340,31 +296,31 @@ def test_solver_returns_structured_internal_violation_when_local_upgrade_fails(
 def test_solver_target_aware_lookup_returns_invalid_lookup() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     base_lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    tile = stage2_input.tile_by_id("T1_near_important")
+    tile_item = stage2_input.tile_by_id("T1_near_important")
 
     lookup = DistanceLookup(
         schema_version=base_lookup.schema_version,
         lookup_profile_id=base_lookup.lookup_profile_id,
         semantics="cap",
         distance_unit=base_lookup.distance_unit,
-        quality_levels=base_lookup.quality_levels,
+        pdl_support=base_lookup.pdl_support,
         source=base_lookup.source,
         rules=(
             LookupRule(
                 rule_id="target_aware_rule",
-                view_context=tile.view_context,
+                view_context=tile_item.view_context,
                 target_id="T1_near_important",
-                distance_match=LookupDistanceMatch(exact_distance=tile.distance_norm),
-                lookup_level=3,
-                threshold_profile="handcheck_cap_profile",
+                distance_match=LookupDistanceMatch(exact_distance=tile_item.distance_norm),
+                pdl_max_dist=1.0,
+                threshold_profile="handcheck_pdl_cap_profile",
             ),
             LookupRule(
                 rule_id="null_target_fallback_rule",
-                view_context=tile.view_context,
+                view_context=tile_item.view_context,
                 target_id=None,
-                distance_match=LookupDistanceMatch(exact_distance=tile.distance_norm),
-                lookup_level=3,
-                threshold_profile="handcheck_cap_profile",
+                distance_match=LookupDistanceMatch(exact_distance=tile_item.distance_norm),
+                pdl_max_dist=1.0,
+                threshold_profile="handcheck_pdl_cap_profile",
             ),
         ),
     )
@@ -383,54 +339,50 @@ def test_solver_target_aware_lookup_returns_invalid_lookup() -> None:
     assert_schema_valid(payload)
 
 
-def test_solver_no_allowed_level_returns_structured_error() -> None:
-    # Synthetic unit-test-only lookup data, not real Longdress experiment output.
+def test_solver_no_allowed_candidate_returns_structured_error() -> None:
     stage2_input = load_stage2_input(FIXTURE / "input_success.json")
     base_lookup = load_distance_lookup(FIXTURE / "distance_lookup.json")
-    tile = stage2_input.tile_by_id("T1_near_important")
-    dirty_rule = object.__new__(LookupRule)
-    object.__setattr__(dirty_rule, "rule_id", "synthetic_no_allowed_level")
-    object.__setattr__(dirty_rule, "view_context", tile.view_context)
-    object.__setattr__(dirty_rule, "target_id", None)
-    object.__setattr__(
-        dirty_rule,
-        "distance_match",
-        LookupDistanceMatch(exact_distance=tile.distance_norm),
-    )
-    object.__setattr__(dirty_rule, "lookup_level", 0)
-    object.__setattr__(dirty_rule, "threshold_profile", "synthetic_test_only")
-    object.__setattr__(dirty_rule, "notes", "test-only malformed cap")
+    tile_item = stage2_input.tile_by_id("T1_near_important")
     lookup = DistanceLookup(
         schema_version=base_lookup.schema_version,
         lookup_profile_id=base_lookup.lookup_profile_id,
         semantics="cap",
         distance_unit=base_lookup.distance_unit,
-        quality_levels=base_lookup.quality_levels,
+        pdl_support=base_lookup.pdl_support,
         source=base_lookup.source,
-        rules=(dirty_rule,),
+        rules=(
+            LookupRule(
+                rule_id="synthetic_no_allowed_candidate",
+                view_context=tile_item.view_context,
+                target_id=None,
+                distance_match=LookupDistanceMatch(exact_distance=tile_item.distance_norm),
+                pdl_max_dist=0.1,
+                threshold_profile="synthetic_test_only",
+            ),
+        ),
     )
 
     result = solve_stage2(stage2_input, lookup, search_config())
     payload = result.to_dict()
 
-    assert payload["status"] == "NO_ALLOWED_LEVEL"
+    assert payload["status"] == "NO_ALLOWED_CANDIDATE"
     assert payload["selected_tiles"] == []
     assert payload["lambda_search"]["enabled"] is False
     assert payload["local_upgrade"]["enabled"] is False
-    assert payload["errors"][0]["code"] == "NO_ALLOWED_LEVEL"
+    assert payload["errors"][0]["code"] == "NO_ALLOWED_CANDIDATE"
 
     assert_schema_valid(payload)
 
 
 def test_lambda_search_result_rejects_best_candidate_trace_mismatch() -> None:
-    candidate = FixedLambdaSelection(
+    candidate_result = FixedLambdaSelection(
         lambda_value=0.2,
         tile_selections=(
             FixedLambdaTileSelection(
                 lambda_value=0.2,
                 tile_id="A",
-                allowed_level_ids=(1,),
-                selected_level_id=1,
+                allowed_candidate_ids=("candidate_a",),
+                selected_candidate_id="candidate_a",
                 selected_r_bytes=10,
                 selected_d_ms=1,
                 selected_net_utility=5,
@@ -451,7 +403,12 @@ def test_lambda_search_result_rejects_best_candidate_trace_mismatch() -> None:
             total_net_utility=5,
             total_decode_ms=1,
             is_budget_feasible=True,
-            selected_levels=(LambdaSelectedLevel(tile_id="A", selected_level_id=1),),
+            selected_candidates=(
+                LambdaSelectedCandidate(
+                    tile_id="A",
+                    selected_candidate_id="candidate_a",
+                ),
+            ),
         ),
     )
 
@@ -463,7 +420,7 @@ def test_lambda_search_result_rejects_best_candidate_trace_mismatch() -> None:
             termination_reason="max_iterations",
             lower_infeasible_lambda=0.0,
             upper_feasible_lambda=0.2,
-            best_feasible_candidate=candidate,
+            best_feasible_candidate=candidate_result,
             best_feasible_trace_index=0,
             trace=trace,
         )

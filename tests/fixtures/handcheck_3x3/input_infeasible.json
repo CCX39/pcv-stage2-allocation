@@ -1,10 +1,10 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "scenario_id": "handcheck_3x3_infeasible",
-  "description": "Synthetic 3-tile by 3-level handcheck scenario with infeasible budget.",
+  "description": "Synthetic 3-tile by 3-candidate handcheck scenario with infeasible budget.",
   "budget_total_bytes": 100,
   "eta": 0.1,
-  "lookup_profile_id": "handcheck_lookup_cap_v1",
+  "lookup_profile_id": "handcheck_lookup_cap_v2",
   "tiles": [
     {
       "tile_id": "T1_near_important",
@@ -13,11 +13,14 @@
       "screen_area": 1,
       "distance_norm": 1.0,
       "view_context": "full_body",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "L1",
+          "candidate_id": "pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T1_near_important/pdl_0_2.ply",
           "q_base": 1,
           "r_bytes": 50,
           "d_ms": 1,
@@ -25,13 +28,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "L2",
+          "candidate_id": "pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T1_near_important/pdl_0_6.ply",
           "q_base": 2,
           "r_bytes": 90,
           "d_ms": 2,
@@ -39,13 +46,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "L3",
+          "candidate_id": "pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T1_near_important/pdl_1_0.ply",
           "q_base": 3,
           "r_bytes": 130,
           "d_ms": 3,
@@ -53,7 +64,8 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         }
       ],
@@ -72,11 +84,14 @@
       "screen_area": 1,
       "distance_norm": 3.0,
       "view_context": "full_body",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "L1",
+          "candidate_id": "pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T2_mid_visible/pdl_0_2.ply",
           "q_base": 1,
           "r_bytes": 40,
           "d_ms": 1,
@@ -84,13 +99,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "L2",
+          "candidate_id": "pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T2_mid_visible/pdl_0_6.ply",
           "q_base": 2,
           "r_bytes": 80,
           "d_ms": 2,
@@ -98,13 +117,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "L3",
+          "candidate_id": "pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T2_mid_visible/pdl_1_0.ply",
           "q_base": 3,
           "r_bytes": 120,
           "d_ms": 3,
@@ -112,7 +135,8 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         }
       ],
@@ -131,11 +155,14 @@
       "screen_area": 1,
       "distance_norm": 6.0,
       "view_context": "full_body",
-      "levels": [
+      "candidates": [
         {
-          "level_id": 1,
-          "quality_label": "L1",
+          "candidate_id": "pdl_0_2",
           "pdl_ratio": 0.2,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T3_far_capped/pdl_0_2.ply",
           "q_base": 1,
           "r_bytes": 30,
           "d_ms": 1,
@@ -143,13 +170,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 2,
-          "quality_label": "L2",
+          "candidate_id": "pdl_0_6",
           "pdl_ratio": 0.6,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T3_far_capped/pdl_0_6.ply",
           "q_base": 2,
           "r_bytes": 70,
           "d_ms": 2,
@@ -157,13 +188,17 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         },
         {
-          "level_id": 3,
-          "quality_label": "L3",
+          "candidate_id": "pdl_1_0",
           "pdl_ratio": 1.0,
+          "file_format": "ply",
+          "codec": "raw_ply",
+          "codec_params": {},
+          "asset_ref": "synthetic://handcheck_3x3/T3_far_capped/pdl_1_0.ply",
           "q_base": 3,
           "r_bytes": 110,
           "d_ms": 3,
@@ -171,7 +206,8 @@
             "pdl_ratio": "synthetic",
             "q_base": "synthetic",
             "r_bytes": "synthetic",
-            "d_ms": "synthetic"
+            "d_ms": "synthetic",
+            "asset_ref": "synthetic"
           }
         }
       ],
@@ -189,6 +225,6 @@
     "source_ids": [
       "handcheck_3x3_manual"
     ],
-    "notes": "Synthetic infeasible-budget handcheck fixture. Not real Longdress experiment data."
+    "notes": "Synthetic infeasible-budget generic-candidate handcheck fixture. Not real Longdress experiment data."
   }
 }

@@ -9,13 +9,13 @@ from .models import (
     LambdaBracketResult,
     LambdaSearchConfig,
     LambdaSearchResult,
-    LambdaSelectedLevel,
+    LambdaSelectedCandidate,
     LambdaTracePoint,
     LookupResolution,
     LookupRule,
-    QualityLevel,
     Stage2Input,
     Tile,
+    TransmissionCandidate,
 )
 
 
@@ -47,7 +47,7 @@ def match_lookup_rule(tile: Tile, lookup: DistanceLookup) -> LookupRule:
         rule_ids = ", ".join(rule.rule_id for rule in target_aware_matches)
         target_ids = ", ".join(str(rule.target_id) for rule in target_aware_matches)
         raise PreprocessError(
-            "Stage2Input v0.1 does not provide the context required for "
+            "Stage2Input v0.2 does not provide the context required for "
             "target-aware lookup rules. Refusing lookup rule(s) "
             f"{rule_ids} with target_id value(s) {target_ids}; target_id must "
             "not be treated as tile_id.",
@@ -74,7 +74,7 @@ def match_lookup_rule(tile: Tile, lookup: DistanceLookup) -> LookupRule:
     return matches[0]
 
 
-def resolve_allowed_levels(tile: Tile, lookup: DistanceLookup) -> LookupResolution:
+def resolve_allowed_candidates(tile: Tile, lookup: DistanceLookup) -> LookupResolution:
     if lookup.semantics != "cap":
         raise PreprocessError(
             f"{lookup.lookup_profile_id} uses unsupported lookup semantics "
@@ -87,21 +87,47 @@ def resolve_allowed_levels(tile: Tile, lookup: DistanceLookup) -> LookupResoluti
         )
 
     rule = match_lookup_rule(tile, lookup)
-    max_existing_level = tile.max_level_id
-    cap_level = min(rule.lookup_level, max_existing_level)
-    allowed_levels = tuple(
-        sorted(level.level_id for level in tile.levels if level.level_id <= cap_level)
-    )
-
-    if not allowed_levels:
+    missing_pdl = [
+        candidate.candidate_id
+        for candidate in tile.candidates
+        if candidate.pdl_ratio is None
+    ]
+    if missing_pdl:
         raise PreprocessError(
-            f"{tile.tile_id} has no allowed levels after lookup cap",
-            code="NO_ALLOWED_LEVEL",
+            "PDL lookup is enabled, but at least one candidate is missing "
+            "pdl_ratio metadata.",
+            code="INVALID_INPUT",
             details={
                 "tile_id": tile.tile_id,
                 "lookup_profile_id": lookup.lookup_profile_id,
                 "matched_rule_id": rule.rule_id,
-                "lookup_level": rule.lookup_level,
+                "missing_pdl_candidate_ids": missing_pdl,
+            },
+        )
+
+    allowed_candidate_ids = tuple(
+        candidate.candidate_id
+        for candidate in tile.candidates
+        if candidate.pdl_ratio is not None
+        and candidate.pdl_ratio <= rule.pdl_max_dist + 1e-12
+    )
+    rejected_candidate_ids = tuple(
+        candidate.candidate_id
+        for candidate in tile.candidates
+        if candidate.pdl_ratio is not None
+        and candidate.pdl_ratio > rule.pdl_max_dist + 1e-12
+    )
+
+    if not allowed_candidate_ids:
+        raise PreprocessError(
+            f"{tile.tile_id} has no allowed candidates after PDL lookup cap",
+            code="NO_ALLOWED_CANDIDATE",
+            details={
+                "tile_id": tile.tile_id,
+                "lookup_profile_id": lookup.lookup_profile_id,
+                "matched_rule_id": rule.rule_id,
+                "pdl_max_dist": rule.pdl_max_dist,
+                "rejected_candidate_ids": rejected_candidate_ids,
             },
         )
 
@@ -109,8 +135,9 @@ def resolve_allowed_levels(tile: Tile, lookup: DistanceLookup) -> LookupResoluti
         tile_id=tile.tile_id,
         lookup_profile_id=lookup.lookup_profile_id,
         matched_rule_id=rule.rule_id,
-        lookup_level=rule.lookup_level,
-        allowed_levels=allowed_levels,
+        pdl_max_dist=rule.pdl_max_dist,
+        allowed_candidate_ids=allowed_candidate_ids,
+        rejected_candidate_ids=rejected_candidate_ids,
     )
 
 
@@ -127,31 +154,34 @@ def resolve_lookup_for_input(
                 "lookup_profile_id": lookup.lookup_profile_id,
             },
         )
-    return tuple(resolve_allowed_levels(tile, lookup) for tile in stage2_input.tiles)
+    return tuple(resolve_allowed_candidates(tile, lookup) for tile in stage2_input.tiles)
 
 
 def compute_spatial_utility(
-    tile: Tile, level: QualityLevel, g_distance: float = 1.0
+    tile: Tile, candidate: TransmissionCandidate, g_distance: float = 1.0
 ) -> float:
     return (
         tile.p_sal
         * tile.visibility
         * tile.screen_area
         * g_distance
-        * level.q_base
+        * candidate.q_base
     )
 
 
-def compute_net_utility(tile: Tile, level: QualityLevel, eta: float) -> float:
-    return compute_spatial_utility(tile, level) - eta * level.d_ms
+def compute_net_utility(
+    tile: Tile, candidate: TransmissionCandidate, eta: float
+) -> float:
+    return compute_spatial_utility(tile, candidate) - eta * candidate.d_ms
 
 
 def compute_b_min_feasible(stage2_input: Stage2Input, lookup: DistanceLookup) -> float:
     total = 0.0
     for tile in stage2_input.tiles:
-        resolution = resolve_allowed_levels(tile, lookup)
+        resolution = resolve_allowed_candidates(tile, lookup)
         candidate_sizes = [
-            tile.level_by_id(level_id).r_bytes for level_id in resolution.allowed_levels
+            tile.candidate_by_id(candidate_id).r_bytes
+            for candidate_id in resolution.allowed_candidate_ids
         ]
         total += min(candidate_sizes)
     return total
@@ -173,9 +203,9 @@ def _require_finite_non_negative(value: float, name: str) -> None:
 
 def _is_better_fixed_lambda_candidate(
     *,
-    candidate_level: QualityLevel,
+    candidate: TransmissionCandidate,
     candidate_score: float,
-    best_level: QualityLevel,
+    best_candidate: TransmissionCandidate,
     best_score: float,
     score_epsilon: float,
 ) -> bool:
@@ -184,16 +214,14 @@ def _is_better_fixed_lambda_candidate(
     if best_score > candidate_score + score_epsilon:
         return False
 
-    # D0-3 fixed-lambda tie order: score, smaller bytes, smaller decode time,
-    # then smaller level_id.
     return (
-        candidate_level.r_bytes,
-        candidate_level.d_ms,
-        candidate_level.level_id,
+        candidate.r_bytes,
+        candidate.d_ms,
+        candidate.candidate_id,
     ) < (
-        best_level.r_bytes,
-        best_level.d_ms,
-        best_level.level_id,
+        best_candidate.r_bytes,
+        best_candidate.d_ms,
+        best_candidate.candidate_id,
     )
 
 
@@ -214,41 +242,41 @@ def select_fixed_lambda(
     resolutions = resolve_lookup_for_input(stage2_input, lookup)
 
     for tile, resolution in zip(stage2_input.tiles, resolutions, strict=True):
-        best_level: QualityLevel | None = None
+        best_candidate: TransmissionCandidate | None = None
         best_net_utility = 0.0
         best_penalized_score = 0.0
 
-        for level_id in resolution.allowed_levels:
-            level = tile.level_by_id(level_id)
-            net_utility = compute_net_utility(tile, level, stage2_input.eta)
-            penalized_score = net_utility - lambda_value * level.r_bytes
+        for candidate_id in resolution.allowed_candidate_ids:
+            candidate = tile.candidate_by_id(candidate_id)
+            net_utility = compute_net_utility(tile, candidate, stage2_input.eta)
+            penalized_score = net_utility - lambda_value * candidate.r_bytes
 
-            if best_level is None or _is_better_fixed_lambda_candidate(
-                candidate_level=level,
+            if best_candidate is None or _is_better_fixed_lambda_candidate(
+                candidate=candidate,
                 candidate_score=penalized_score,
-                best_level=best_level,
+                best_candidate=best_candidate,
                 best_score=best_penalized_score,
                 score_epsilon=score_epsilon,
             ):
-                best_level = level
+                best_candidate = candidate
                 best_net_utility = net_utility
                 best_penalized_score = penalized_score
 
-        assert best_level is not None
+        assert best_candidate is not None
 
         tile_selections.append(
             FixedLambdaTileSelection(
                 lambda_value=lambda_value,
                 tile_id=tile.tile_id,
-                allowed_level_ids=resolution.allowed_levels,
-                selected_level_id=best_level.level_id,
-                selected_r_bytes=best_level.r_bytes,
-                selected_d_ms=best_level.d_ms,
+                allowed_candidate_ids=resolution.allowed_candidate_ids,
+                selected_candidate_id=best_candidate.candidate_id,
+                selected_r_bytes=best_candidate.r_bytes,
+                selected_d_ms=best_candidate.d_ms,
                 selected_net_utility=best_net_utility,
                 selected_penalized_score=best_penalized_score,
             )
         )
-        total_bytes += best_level.r_bytes
+        total_bytes += best_candidate.r_bytes
         total_net_utility += best_net_utility
         total_penalized_score += best_penalized_score
 
@@ -276,10 +304,10 @@ def _trace_point_from_fixed_lambda(
             selection.selected_d_ms for selection in candidate.tile_selections
         ),
         is_budget_feasible=candidate.is_budget_feasible,
-        selected_levels=tuple(
-            LambdaSelectedLevel(
+        selected_candidates=tuple(
+            LambdaSelectedCandidate(
                 tile_id=selection.tile_id,
-                selected_level_id=selection.selected_level_id,
+                selected_candidate_id=selection.selected_candidate_id,
             )
             for selection in candidate.tile_selections
         ),
@@ -296,9 +324,11 @@ def _candidate_budget_utilization(candidate: FixedLambdaSelection) -> float:
     return candidate.total_bytes / candidate.budget_total_bytes
 
 
-def _candidate_selection_key(candidate: FixedLambdaSelection) -> tuple[tuple[str, int], ...]:
+def _candidate_selection_key(
+    candidate: FixedLambdaSelection,
+) -> tuple[tuple[str, str], ...]:
     return tuple(
-        (selection.tile_id, selection.selected_level_id)
+        (selection.tile_id, selection.selected_candidate_id)
         for selection in sorted(
             candidate.tile_selections,
             key=lambda selection: selection.tile_id,

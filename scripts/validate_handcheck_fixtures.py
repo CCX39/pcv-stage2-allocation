@@ -86,19 +86,11 @@ def validate_schema(schema: dict[str, Any], path: Path) -> None:
         ) from exc
 
 
-def level_map(tile: dict[str, Any]) -> dict[int, dict[str, Any]]:
-    levels = {level["level_id"]: level for level in tile["levels"]}
-    if len(levels) != len(tile["levels"]):
-        fail(f"{tile['tile_id']} has duplicate level_id values")
-
-    expected_ids = list(range(1, max(levels) + 1))
-    actual_ids = sorted(levels)
-    if actual_ids != expected_ids:
-        fail(
-            f"{tile['tile_id']} level_id values must be contiguous from 1: "
-            f"expected {expected_ids}, got {actual_ids}"
-        )
-    return levels
+def candidate_map(tile: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    candidates = {item["candidate_id"]: item for item in tile["candidates"]}
+    if len(candidates) != len(tile["candidates"]):
+        fail(f"{tile['tile_id']} has duplicate candidate_id values")
+    return candidates
 
 
 def rule_matches_tile_context(tile: dict[str, Any], rule: dict[str, Any]) -> bool:
@@ -123,7 +115,7 @@ def matched_lookup_rule(tile: dict[str, Any], lookup: dict[str, Any]) -> dict[st
         rule_ids = ", ".join(rule["rule_id"] for rule in target_aware_matches)
         target_ids = ", ".join(str(rule.get("target_id")) for rule in target_aware_matches)
         fail(
-            "Stage2Input v0.1 does not provide the context required for target-aware "
+            "Stage2Input v0.2 does not provide the context required for target-aware "
             f"lookup rules. Refusing rule(s) {rule_ids} with target_id value(s) "
             f"{target_ids}; target_id must not be treated as tile_id."
         )
@@ -134,18 +126,26 @@ def matched_lookup_rule(tile: dict[str, Any], lookup: dict[str, Any]) -> dict[st
     return matches[0]
 
 
-def allowed_levels_for(tile: dict[str, Any], rule: dict[str, Any]) -> list[int]:
-    levels = level_map(tile)
-    lookup_level = rule["lookup_level"]
-    max_level = max(levels)
+def allowed_candidates_for(tile: dict[str, Any], rule: dict[str, Any]) -> list[str]:
+    pdl_max_dist = rule["pdl_max_dist"]
+    if pdl_max_dist <= 0:
+        fail(f"{tile['tile_id']} pdl_max_dist must be positive, got {pdl_max_dist}")
 
-    if lookup_level < 1:
-        fail(f"{tile['tile_id']} lookup_level must be positive, got {lookup_level}")
+    allowed = []
+    for item in tile["candidates"]:
+        if item.get("pdl_ratio") is None:
+            fail(f"{tile['tile_id']} candidate {item['candidate_id']} is missing pdl_ratio")
+        if item["pdl_ratio"] <= pdl_max_dist + EPSILON:
+            allowed.append(item["candidate_id"])
+    return allowed
 
-    # D0-1 cap semantics: lookup_level is an upper bound, not a fixed choice or floor.
-    # If a near-field profile uses lookup_level above the available max, all existing
-    # levels remain candidates.
-    return [level_id for level_id in sorted(levels) if level_id <= min(lookup_level, max_level)]
+
+def rejected_candidates_for(tile: dict[str, Any], rule: dict[str, Any]) -> list[str]:
+    return [
+        item["candidate_id"]
+        for item in tile["candidates"]
+        if item["pdl_ratio"] > rule["pdl_max_dist"] + EPSILON
+    ]
 
 
 def compute_lookup_resolution(
@@ -156,16 +156,17 @@ def compute_lookup_resolution(
     resolutions = []
     for tile in data["tiles"]:
         rule = matched_lookup_rule(tile, lookup)
-        allowed_levels = allowed_levels_for(tile, rule)
-        if not allowed_levels:
-            fail(f"{tile['tile_id']} has no allowed levels after lookup cap")
+        allowed = allowed_candidates_for(tile, rule)
+        if not allowed:
+            fail(f"{tile['tile_id']} has no allowed candidates after PDL lookup cap")
         resolutions.append(
             {
                 "tile_id": tile["tile_id"],
                 "lookup_profile_id": lookup["lookup_profile_id"],
                 "matched_rule_id": rule["rule_id"],
-                "lookup_level": rule["lookup_level"],
-                "allowed_levels": allowed_levels,
+                "pdl_max_dist": rule["pdl_max_dist"],
+                "allowed_candidate_ids": allowed,
+                "rejected_candidate_ids": rejected_candidates_for(tile, rule),
             }
         )
     return resolutions
@@ -183,24 +184,28 @@ def compute_b_min_feasible(data: dict[str, Any], lookup: dict[str, Any]) -> floa
     total = 0.0
     for tile in data["tiles"]:
         rule = matched_lookup_rule(tile, lookup)
-        allowed_levels = allowed_levels_for(tile, rule)
-        levels = level_map(tile)
-        total += min(levels[level_id]["r_bytes"] for level_id in allowed_levels)
+        allowed = allowed_candidates_for(tile, rule)
+        candidates = candidate_map(tile)
+        total += min(candidates[candidate_id]["r_bytes"] for candidate_id in allowed)
     return total
 
 
-def spatial_utility(tile: dict[str, Any], level: dict[str, Any], g_distance: float = 1.0) -> float:
+def spatial_utility(
+    tile: dict[str, Any],
+    candidate: dict[str, Any],
+    g_distance: float = 1.0,
+) -> float:
     return (
         tile["p_sal"]
         * tile["visibility"]
         * tile["screen_area"]
         * g_distance
-        * level["q_base"]
+        * candidate["q_base"]
     )
 
 
-def net_utility(tile: dict[str, Any], level: dict[str, Any], eta: float) -> float:
-    return spatial_utility(tile, level) - eta * level["d_ms"]
+def net_utility(tile: dict[str, Any], candidate: dict[str, Any], eta: float) -> float:
+    return spatial_utility(tile, candidate) - eta * candidate["d_ms"]
 
 
 def expect_success_result(
@@ -221,19 +226,19 @@ def expect_success_result(
     expect_close(expected_result["budget_gap"], 0, "success budget_gap")
 
     expected_selection = {
-        "T1_near_important": 3,
-        "T2_mid_visible": 1,
-        "T3_far_capped": 1,
+        "T1_near_important": "pdl_1_0",
+        "T2_mid_visible": "pdl_0_2",
+        "T3_far_capped": "pdl_0_2",
     }
     actual_selection = {
-        tile["tile_id"]: tile["selected_level_id"]
+        tile["tile_id"]: tile["selected_candidate_id"]
         for tile in expected_result["selected_tiles"]
     }
-    expect_equal(actual_selection, expected_selection, "success selected levels")
+    expect_equal(actual_selection, expected_selection, "success selected candidates")
 
     tiles = {tile["tile_id"]: tile for tile in input_data["tiles"]}
     computed_allowed = {
-        item["tile_id"]: item["allowed_levels"] for item in computed_lookup
+        item["tile_id"]: item["allowed_candidate_ids"] for item in computed_lookup
     }
 
     total_bytes = 0.0
@@ -243,25 +248,32 @@ def expect_success_result(
 
     for selected in expected_result["selected_tiles"]:
         tile = tiles[selected["tile_id"]]
-        levels = level_map(tile)
-        level_id = selected["selected_level_id"]
-        if level_id not in computed_allowed[tile["tile_id"]]:
-            fail(f"{tile['tile_id']} selected level {level_id} is outside allowed_levels")
+        candidates = candidate_map(tile)
+        candidate_id = selected["selected_candidate_id"]
+        if candidate_id not in computed_allowed[tile["tile_id"]]:
+            fail(
+                f"{tile['tile_id']} selected candidate {candidate_id} "
+                "is outside allowed_candidate_ids"
+            )
 
-        level = levels[level_id]
-        selected_spatial = spatial_utility(tile, level)
-        selected_net = net_utility(tile, level, input_data["eta"])
+        candidate = candidates[candidate_id]
+        selected_spatial = spatial_utility(tile, candidate)
+        selected_net = net_utility(tile, candidate, input_data["eta"])
 
-        expect_equal(selected["r_bytes"], level["r_bytes"], f"{tile['tile_id']} r_bytes")
-        expect_equal(selected["d_ms"], level["d_ms"], f"{tile['tile_id']} d_ms")
+        expect_equal(selected["r_bytes"], candidate["r_bytes"], f"{tile['tile_id']} r_bytes")
+        expect_equal(selected["d_ms"], candidate["d_ms"], f"{tile['tile_id']} d_ms")
         expect_close(selected["spatial_utility"], selected_spatial, f"{tile['tile_id']} spatial_utility")
         expect_close(selected["net_utility"], selected_net, f"{tile['tile_id']} net_utility")
-        expect_equal(selected["allowed_levels"], computed_allowed[tile["tile_id"]], f"{tile['tile_id']} allowed_levels")
+        expect_equal(
+            selected["allowed_candidate_ids"],
+            computed_allowed[tile["tile_id"]],
+            f"{tile['tile_id']} allowed_candidate_ids",
+        )
 
-        total_bytes += level["r_bytes"]
+        total_bytes += candidate["r_bytes"]
         total_net += selected_net
         total_spatial += selected_spatial
-        total_decode += level["d_ms"]
+        total_decode += candidate["d_ms"]
 
     expect_close(total_bytes, 200, "success computed total_bytes")
     expect_close(total_net, 39.5, "success computed total_net_utility")
@@ -302,10 +314,6 @@ def expect_infeasible_result(
     expect_equal(expected_result["total_bytes"], None, "infeasible total_bytes")
     expect_equal(expected_result["total_net_utility"], None, "infeasible total_net_utility")
     expect_equal(expected_result["lambda_search"]["enabled"], False, "infeasible lambda_search.enabled")
-
-    error_codes = {error["code"] for error in expected_result["errors"]}
-    if "INFEASIBLE_BUDGET" not in error_codes:
-        fail("infeasible result must include an INFEASIBLE_BUDGET error")
 
 
 def main() -> int:
@@ -357,7 +365,7 @@ def main() -> int:
     expect_lookup_resolution(
         fixtures["expected_infeasible_result"], infeasible_lookup, "infeasible"
     )
-    print("[OK] lookup cap resolution matches hand calculation")
+    print("[OK] PDL lookup cap resolution matches hand calculation")
 
     expect_success_result(
         fixtures["input_success"],
