@@ -1,6 +1,6 @@
 # 决策记录
 
-本文记录当前仓库已经冻结的工程决策。Phase 2B.2 只整理文档语言和 Markdown 组织，不改变这些技术决策。
+本文记录当前仓库已经冻结的工程决策。
 
 ## D0-1 / D2B.1：lookup 是基于 candidate.pdl_ratio 的 PDL 上界筛选
 
@@ -8,7 +8,7 @@
 |---|---|
 | 决策 | lookup `semantics = cap` 表示 `candidate.pdl_ratio <= pdl_max_dist` 的候选保留规则。 |
 | 背景 | 旧运行时曾把 lookup 解释为连续 PDL 档位前缀。Phase 2B.1 已迁移为 generic transmission candidate，候选不再天然全序。 |
-| 影响 | 预处理只按显式 `pdl_ratio` 筛选，不按 `candidate_id`、数组位置、QP、codec 或 file format 筛选。 |
+| 影响 | 预处理只按显式 `pdl_ratio` 筛选，不按 `candidate_id`、数组位置、`qp`、codec 或 `file_format` 筛选。 |
 | 边界 | 当前 PDL lookup 来自 PLY nested-PDL calibration，不是 DRC-aware quality measurement，也不是最终 QoE 结论。 |
 
 相同 PDL 下的 PLY、DRC 或不同 codec 参数候选应同时保留。高于 `pdl_max_dist` 的候选被剔除并记录在 lookup resolution 中。
@@ -69,7 +69,7 @@ Delta_Uhat > 0
 Delta_R <= residual_budget
 ```
 
-repair 不依赖候选编号、PDL、QP、codec 或 file format 的大小方向。trace 记录 `from_candidate_id`、`to_candidate_id`、增量、剩余预算变化与选择原因。
+repair 不依赖候选编号、PDL、`qp`、codec 或 `file_format` 的大小方向。trace 记录 `from_candidate_id`、`to_candidate_id`、增量、剩余预算变化与选择原因。
 
 ## D1G：小规模 exhaustive oracle 仅用于测试
 
@@ -89,9 +89,25 @@ Phase 2B.2 将仓库说明文档统一收敛为中文 Markdown。对应英文镜
 
 该阶段不修改代码、Schema、fixture、测试、脚本或算法语义。
 
+## D2B.3：frame 1051 metadata bridge 是只读目录桥接
+
+Phase 2B.3 新增 read-only metadata bridge。它显式接收本机 `pcv-stage2-data-prep` root，只读取轻量 JSON manifest/report，并通过 stat size 校验 manifest 引用文件。
+
+权威来源层级为：
+
+1. profile config；
+2. source PLY artifact manifest 与 tile index；
+3. DRC generation manifest；
+4. DRC validation report。
+
+bridge fail-closed：Longdress / frame 1051 / G128 / 5 PDL / 3 qp / Draco / point-cloud / `cl=10`、40 non-empty tile、200 PLY、600 DRC、800 total candidate、相对路径、文件存在性、manifest size、source PLY linkage 或 validation 摘要任一不一致都会失败。
+
+catalog 中 `r_bytes` 是候选文件本体字节数，来自 manifest 与 stat size 的一致性检查，provenance 为 `measured`。它不是端到端网络总开销。`d_ms` 与 `q_base` 保持 `pending`，不得由文件大小、点数、PDL、`qp`、codec 或常数推导。
+
+catalog 不是 `Stage2Input`，不能直接传入 solver。本阶段不读取 PLY/DRC 二进制内容，不运行 Draco，不重算大文件 SHA-256，不复制真实 assets，不生成 frame 1051 正式输入，不调用 `solve_stage2(...)`。
+
 ## 后续阶段编号
 
-- Phase 2B.3：真实候选元数据只读桥接，尚未开始。
 - Phase 2B.4：frame 1051 求解器行为验证，尚未开始。
 
-本轮不接入真实 artifact root，不读取或生成真实 PLY/DRC assets，不生成 frame 1051 正式 Stage2Input，不测 target-side `D`，不构建 DRC-aware 或 format-aware `q`，不实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting 或播放器接入。
+Phase 2B.4 之前仍需研究者冻结明确 proxy scoring/profile，包括如何补入 proxy `d_ms`、proxy `q_base`、预算和 tile 空间因子。本仓库仍未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。

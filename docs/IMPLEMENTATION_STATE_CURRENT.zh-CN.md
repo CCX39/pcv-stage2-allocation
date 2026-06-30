@@ -1,14 +1,14 @@
 # 当前实现状态
 
-当前仓库阶段：**Phase 2B.2：中文文档收口与英文 Markdown 文档清理**。
+当前仓库阶段：**Phase 2B.3：frame 1051 真实候选元数据只读桥接**。
 
-本阶段只整理仓库说明文档的语言、标题、内部链接和中英文镜像文件组织方式，不修改求解器行为、Schema、Python 代码、测试、fixture、脚本或任何真实资产。
+Phase 2B.1 已完成 Stage2 allocation 的 generic-candidate 迁移。Phase 2B.2 已将项目说明文档收口为中文 Markdown。本轮 Phase 2B.3 新增 allocation 侧的只读 metadata bridge，用于消费 `pcv-stage2-data-prep` 中 frame 1051 的轻量 JSON manifest/report，生成可审查的 candidate metadata catalog。
 
-## 已完成的 Phase 2B.1
+本轮没有修改 `solve_stage2(...)` 的算法行为、Schema、fixture 语义或真实数据资产。
 
-Phase 2B.1 已完成 Stage2 allocation 的 generic-candidate 迁移。运行时输入已经从连续 PDL 质量档位改为通用传输版本候选。
+## 运行时状态
 
-每个 tile 包含 `candidates[]`，候选记录：
+运行时输入已经从连续 PDL 质量档位改为通用传输版本候选。每个 tile 包含 `candidates[]`，候选记录：
 
 - `candidate_id`
 - `pdl_ratio`
@@ -61,20 +61,39 @@ Delta_Uhat > 0
 Delta_R <= residual_budget
 ```
 
+## Phase 2B.3 已新增内容
+
+- 新增 `src/pcv_stage2/frame1051_metadata_bridge.py`，只读构建 frame 1051 candidate metadata catalog。
+- 新增 `scripts/build_frame1051_candidate_catalog.py`，显式接收本机 data-prep root，可将真实 catalog 写入 ignored `outputs/`。
+- 新增 synthetic bridge 测试，覆盖正常 catalog 构造、同 PDL 下 PLY/DRC 并列、路径越界、source/DRC tile 集合不一致、source linkage 缺失、组合不完整、manifest size mismatch、profile mismatch、validation 未通过、pending 字段和排序稳定性。
+
+## Metadata Bridge 边界
+
+桥接读取的权威层级为：
+
+1. data-prep profile config；
+2. source PLY artifact manifest 与 tile index；
+3. DRC generation manifest；
+4. DRC validation report。
+
+桥接只读取 JSON manifest/report，并用 `Path.stat()` 校验 manifest 引用文件存在且 size 一致。它不读取 PLY/DRC 二进制内容，不运行 Draco，不重算大文件 SHA-256，不复制真实 assets、manifest 或绝对路径。
+
+catalog 包含 8i Longdress frame 1051、G128、40 个 non-empty tile、200 个 source PLY 候选和 600 个 DRC delivery 候选。`r_bytes` 是候选文件本体字节数，provenance 为 `measured`，可作为后续 `R_i,j` 的候选事实来源；它不是端到端网络总开销。
+
+catalog 中 `d_ms_status = pending`、`q_base_status = pending`。本轮未填 `d_ms` 或 `q_base` 数值，未把文件大小、点数、PDL、`qp`、`codec` 或常数当作代理评分。
+
+catalog 不是正式 `Stage2Input`，不能直接传入 `solve_stage2(...)`。Phase 2B.4 才会在研究者冻结明确 proxy scoring/profile 后，将 catalog 与评分配置组合为行为验证输入。
+
 ## 已验证资产
 
 - handcheck 3x3 fixture 已迁移为 generic-candidate JSON，并保留 PDL-only 特例的手算结果。
 - calibration-informed proxy fixture 已迁移为 generic-candidate JSON，保留 full-body strict PDL lookup 来源与 proxy tile metadata 边界。
 - tests-only exhaustive oracle 继续只在测试中使用，用于 tiny-instance exact feasible reference。
-- result schema 输出 `selected_candidate_id`、`selected_candidate_snapshot`、`allowed_candidate_ids`、`lookup_pdl_max_dist`、lambda selected candidates 和 candidate switch repair trace。
-
-## 当前文档整理结果
-
-Phase 2B.2 将项目说明统一收敛为中文 Markdown。英文镜像说明文档被删除；保留的中文文档保持 `.zh-CN.md` 文件名，不改为中文文件名，也不新建英文镜像。
+- frame 1051 metadata bridge 可只读检查 data-prep 的真实 PLY/DRC metadata，并生成 ignored catalog。
 
 ## 下一步边界
 
-- Phase 2B.3：真实候选元数据只读桥接，尚未开始。
 - Phase 2B.4：frame 1051 求解器行为验证，尚未开始。
+- Phase 2B.4 之前仍需冻结明确的 proxy scoring/profile：如何给 catalog 中候选补入 proxy `d_ms`、proxy `q_base`、预算与 tile 空间因子。
 
-当前仍未接入真实 artifact root，未读取或生成真实 PLY/DRC assets，未生成 frame 1051 正式 Stage2Input，未测 target-side `D`，未构建 DRC-aware 或 format-aware `q`，未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting 或播放器接入。
+当前仍未生成 frame 1051 正式 `Stage2Input`，未对真实 frame 1051 调用 solver，未测 target-side `D`，未构建 DRC-aware 或 format-aware `q`，未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。
