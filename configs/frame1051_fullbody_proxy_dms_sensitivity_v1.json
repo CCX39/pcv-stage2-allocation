@@ -1,0 +1,154 @@
+{
+  "profile_id": "frame1051_fullbody_proxy_dms_sensitivity_v1",
+  "phase": "Phase 2B.5",
+  "description_zh": "Phase 2B.5 frame 1051 处理耗时代理敏感性验证 profile。它复用 Phase 2B.4 的真实候选目录、真实 r_bytes、full-body PDL lookup、q_base proxy 与派生预算，仅新增按 candidate_kind 注入的 proxy d_ms 和 eta scenarios，用于观察 generic-candidate solver 是否在 R 与 eta*D 之间产生确定性候选切换。",
+  "catalog_contract": {
+    "required_catalog_type": "frame1051_candidate_metadata_catalog",
+    "required_solver_ready": false,
+    "required_candidate_d_ms_status": "pending",
+    "required_candidate_q_base_status": "pending"
+  },
+  "lookup": {
+    "lookup_profile_id": "longdress_fullbody_strict_behavior_pilot_v1",
+    "semantics": "cap",
+    "distance_unit": "normalized_render_distance",
+    "threshold_profile": "strict_p10_ssim_ge_0.98",
+    "source_runs": [
+      "20260602_161531_longdress_full10"
+    ],
+    "source_boundary_zh": "使用 Longdress full-body strict PLY nested-PDL calibration 支持点；不是 DRC-aware quality measurement，也不是最终 QoE 结论。",
+    "pdl_support": [
+      {
+        "pdl_ratio": 0.2,
+        "quality_label": "PDL_0.2"
+      },
+      {
+        "pdl_ratio": 0.4,
+        "quality_label": "PDL_0.4"
+      },
+      {
+        "pdl_ratio": 0.6,
+        "quality_label": "PDL_0.6"
+      },
+      {
+        "pdl_ratio": 0.8,
+        "quality_label": "PDL_0.8"
+      },
+      {
+        "pdl_ratio": 1.0,
+        "quality_label": "PDL_1.0"
+      }
+    ],
+    "rules": [
+      {
+        "rule_id": "fullbody_behavior_d1_pdl1_0",
+        "view_context": "full_body",
+        "target_id": null,
+        "distance_match": {
+          "exact_distance": 1.0
+        },
+        "pdl_max_dist": 1.0,
+        "threshold_profile": "strict_p10_ssim_ge_0.98",
+        "notes": "Phase 2B.5 fullbody_d1 sensitivity context."
+      },
+      {
+        "rule_id": "fullbody_behavior_d3_pdl0_6",
+        "view_context": "full_body",
+        "target_id": null,
+        "distance_match": {
+          "exact_distance": 3.0
+        },
+        "pdl_max_dist": 0.6,
+        "threshold_profile": "strict_p10_ssim_ge_0.98",
+        "notes": "Phase 2B.5 fullbody_d3 sensitivity context."
+      }
+    ]
+  },
+  "observation_contexts": [
+    {
+      "context_id": "fullbody_d1",
+      "view_context": "full_body",
+      "distance_norm": 1.0,
+      "expected_pdl_max_dist": 1.0,
+      "distance_assignment_provenance": "calibrated",
+      "notes_zh": "统一使用 calibrated lookup 支持点 d=1.0；不是每个 tile 的真实几何距离、真实视点或真实 viewport。"
+    },
+    {
+      "context_id": "fullbody_d3",
+      "view_context": "full_body",
+      "distance_norm": 3.0,
+      "expected_pdl_max_dist": 0.6,
+      "distance_assignment_provenance": "calibrated",
+      "notes_zh": "统一使用 calibrated lookup 支持点 d=3.0；不是每个 tile 的真实几何距离、真实视点或真实 viewport。"
+    }
+  ],
+  "tile_proxy_fields": {
+    "p_sal": 1.0,
+    "visibility": 1.0,
+    "screen_area": 1.0,
+    "provenance": "proxy",
+    "notes_zh": "统一中性空间因子只用于避免虚构 saliency、visibility、screen_area 或相机几何。"
+  },
+  "candidate_proxy_fields": {
+    "q_base_rule": "q_base = pdl_ratio",
+    "q_base_provenance": "proxy",
+    "d_ms_by_candidate_kind": {
+      "ply_source": 80.0,
+      "drc_delivery": 100.0
+    },
+    "d_ms_provenance": "proxy",
+    "eta_scenarios": [
+      {
+        "eta_id": "eta0",
+        "eta": 0.0,
+        "provenance": "proxy",
+        "notes_zh": "eta=0 回归场景；d_ms 不影响净效用。"
+      },
+      {
+        "eta_id": "eta_moderate",
+        "eta": 0.0025,
+        "provenance": "proxy",
+        "notes_zh": "中等处理耗时代理权重，仅用于敏感性观察。"
+      },
+      {
+        "eta_id": "eta_stronger",
+        "eta": 0.005,
+        "provenance": "proxy",
+        "notes_zh": "较强处理耗时代理权重，仅用于敏感性观察。"
+      }
+    ],
+    "notes_zh": "PLY d_ms=80.0 ms、DRC d_ms=100.0 ms 是人为设定的候选级 proxy，不是 target-side measured benchmark。所有 DRC qp 共享同一 proxy d_ms，不根据 qp、candidate_id、文件大小或数组顺序细分。"
+  },
+  "budget_points": [
+    {
+      "budget_id": "min_feasible",
+      "formula": "B_min = sum_i min_j R_i,j over lookup-allowed candidates"
+    },
+    {
+      "budget_id": "midpoint",
+      "formula": "B_mid = floor((B_min + B_reference_max) / 2)"
+    },
+    {
+      "budget_id": "reference_max",
+      "formula": "B_reference_max = sum_i max_j R_i,j over lookup-allowed candidates"
+    }
+  ],
+  "budget_total_bytes_provenance": "derived",
+  "solver_config": {
+    "lambda_initial_high": 0.1,
+    "lambda_max_bracket_steps": 24,
+    "score_epsilon": 1e-9,
+    "lambda_epsilon": 1e-9,
+    "max_iterations": 50
+  },
+  "non_claims": [
+    "该 profile 只用于 solver behavior sensitivity pilot，不是 target-side measured benchmark。",
+    "PLY d_ms=80.0 ms、DRC d_ms=100.0 ms 是 proxy，不是实际逐 tile 测量，也不是完整帧加载耗时。",
+    "eta 数值只服务于当前 q_base 与 d_ms proxy 尺度下的受控行为观察，不是真实设备、网络、用户或播放器参数。",
+    "q_base=pdl_ratio 仍只是 proxy scoring rule，不是 DRC-aware 或 format-aware 质量测量。",
+    "所有 DRC qp 共享同一 d_ms proxy；本轮不引入 qp 质量或处理耗时顺序。",
+    "r_bytes 是候选文件本体字节数，不是端到端网络总开销。",
+    "不同 eta 的 total_net_utility 不应直接横向解释为性能优劣，因为目标函数已经改变。",
+    "本轮不声明 PLY 或 DRC 的实际质量、处理开销、网络性能或 QoE 更优。"
+  ]
+}

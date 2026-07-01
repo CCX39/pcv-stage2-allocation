@@ -103,6 +103,7 @@ def validate_catalog_for_behavior_pilot(
                 candidate.get("candidate_kind") in {"ply_source", "drc_delivery"},
                 f"{tile_id}/{candidate_id} candidate_kind must be ply_source or drc_delivery",
             )
+    _validate_candidate_proxy_fields(profile)
 
 
 def build_behavior_lookup_payload(profile: dict[str, Any]) -> dict[str, Any]:
@@ -212,19 +213,24 @@ def build_stage2_input_payload(
     profile: dict[str, Any],
     observation: dict[str, Any],
     budget_point: dict[str, Any],
+    eta_scenario: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     profile_id = profile["profile_id"]
-    scenario_id = (
-        f"{profile_id}__{observation['context_id']}__{budget_point['budget_id']}"
-    )
+    eta_scenario = eta_scenario or _default_eta_scenario(profile)
+    scenario_parts = [profile_id, observation["context_id"], budget_point["budget_id"]]
+    if eta_scenario.get("eta_id") is not None:
+        scenario_parts.append(eta_scenario["eta_id"])
+    scenario_id = "__".join(scenario_parts)
     tile_proxy = profile["tile_proxy_fields"]
     candidate_proxy = profile["candidate_proxy_fields"]
+    d_ms_mapping = _d_ms_mapping(profile)
 
     tiles = []
     for tile in sorted(catalog["tiles"], key=lambda item: item["tile_id"]):
         candidates = []
         for candidate in sorted(tile["candidates"], key=_candidate_sort_key):
             pdl_ratio = _pdl_ratio(candidate["pdl_ratio"], f"{tile['tile_id']} pdl_ratio")
+            candidate_d_ms = _candidate_d_ms(candidate, d_ms_mapping)
             candidates.append(
                 {
                     "candidate_id": candidate["candidate_id"],
@@ -234,7 +240,7 @@ def build_stage2_input_payload(
                     "codec_params": _json_compatible(candidate.get("codec_params", {})),
                     "asset_ref": _candidate_asset_ref(candidate),
                     "r_bytes": float(candidate["r_bytes"]),
-                    "d_ms": float(candidate_proxy["d_ms"]),
+                    "d_ms": candidate_d_ms,
                     "q_base": pdl_ratio,
                     "provenance": {
                         "r_bytes": "measured",
@@ -268,22 +274,24 @@ def build_stage2_input_payload(
         "schema_version": "0.2.0",
         "scenario_id": scenario_id,
         "description": (
-            "Phase 2B.4 frame 1051 solver behavior pilot input. "
+            "Frame 1051 solver behavior pilot input. "
             "Uses real candidate identity and measured file body r_bytes with "
             "explicit proxy q_base/d_ms/spatial fields."
         ),
         "budget_total_bytes": float(budget_point["budget_total_bytes"]),
-        "eta": float(candidate_proxy["eta"]),
+        "eta": float(eta_scenario["eta"]),
         "lookup_profile_id": profile["lookup"]["lookup_profile_id"],
         "tiles": tiles,
         "provenance_summary": {
             "pilot_profile_id": profile_id,
-            "phase": "Phase 2B.4",
+            "phase": profile.get("phase", "Phase 2B.4"),
             "catalog_type": catalog["catalog_type"],
             "candidate_identity": "measured",
             "r_bytes": "measured",
             "q_base": candidate_proxy["q_base_provenance"],
             "d_ms": candidate_proxy["d_ms_provenance"],
+            "d_ms_mapping": d_ms_mapping,
+            "eta_scenario": dict(eta_scenario),
             "spatial_fields": tile_proxy["provenance"],
             "distance_norm": observation["distance_assignment_provenance"],
             "budget_total_bytes": profile["budget_total_bytes_provenance"],
@@ -297,9 +305,16 @@ def build_stage2_input(
     profile: dict[str, Any],
     observation: dict[str, Any],
     budget_point: dict[str, Any],
+    eta_scenario: dict[str, Any] | None = None,
 ) -> Stage2Input:
     return stage2_input_from_dict(
-        build_stage2_input_payload(catalog, profile, observation, budget_point)
+        build_stage2_input_payload(
+            catalog,
+            profile,
+            observation,
+            budget_point,
+            eta_scenario,
+        )
     )
 
 
@@ -328,6 +343,7 @@ def run_behavior_pilot(
 
     scenario_artifacts = []
     scenario_reports = []
+    eta_scenarios = _eta_scenarios(profile)
 
     for observation in profile["observation_contexts"]:
         budget_context = derive_budget_points(catalog, profile, observation)
@@ -337,37 +353,42 @@ def run_behavior_pilot(
             f"{observation['context_id']} pdl_max_dist",
         )
         for budget_point in budget_context["budget_points"]:
-            input_payload = build_stage2_input_payload(
-                catalog,
-                profile,
-                observation,
-                budget_point,
-            )
-            stage2_input = stage2_input_from_dict(input_payload)
-            result = solve_stage2(stage2_input, lookup, config)
-            result_payload = result.to_dict()
-            invariants = check_result_invariants(
-                stage2_input=stage2_input,
-                result=result,
-                catalog_index=catalog_index,
-            )
-            scenario_report = _scenario_report(
-                observation=observation,
-                budget_context=budget_context,
-                budget_point=budget_point,
-                stage2_input=stage2_input,
-                result=result,
-                invariants=invariants,
-                catalog_index=catalog_index,
-            )
-            scenario_artifacts.append(
-                {
-                    "scenario_id": stage2_input.scenario_id,
-                    "input_payload": input_payload,
-                    "result_payload": result_payload,
-                }
-            )
-            scenario_reports.append(scenario_report)
+            for eta_scenario in eta_scenarios:
+                input_payload = build_stage2_input_payload(
+                    catalog,
+                    profile,
+                    observation,
+                    budget_point,
+                    eta_scenario,
+                )
+                stage2_input = stage2_input_from_dict(input_payload)
+                result = solve_stage2(stage2_input, lookup, config)
+                result_payload = result.to_dict()
+                invariants = check_result_invariants(
+                    stage2_input=stage2_input,
+                    result=result,
+                    catalog_index=catalog_index,
+                )
+                scenario_report = _scenario_report(
+                    observation=observation,
+                    budget_context=budget_context,
+                    budget_point=budget_point,
+                    eta_scenario=eta_scenario,
+                    stage2_input=stage2_input,
+                    result=result,
+                    invariants=invariants,
+                    catalog_index=catalog_index,
+                )
+                scenario_artifacts.append(
+                    {
+                        "scenario_id": stage2_input.scenario_id,
+                        "input_payload": input_payload,
+                        "result_payload": result_payload,
+                    }
+                )
+                scenario_reports.append(scenario_report)
+
+    _attach_eta0_change_counts(scenario_reports)
 
     report = {
         "report_type": "frame1051_solver_behavior_pilot_report",
@@ -391,6 +412,8 @@ def run_behavior_pilot(
         "proxy_assumptions": {
             "tile_proxy_fields": dict(profile["tile_proxy_fields"]),
             "candidate_proxy_fields": dict(profile["candidate_proxy_fields"]),
+            "d_ms_mapping": _d_ms_mapping(profile),
+            "eta_scenarios": eta_scenarios,
             "budget_total_bytes_provenance": profile["budget_total_bytes_provenance"],
         },
         "scenario_count": len(scenario_reports),
@@ -511,10 +534,13 @@ def behavior_pilot_console_summary(report: dict[str, Any], output_dir: str | Pat
         lines.append(
             (
                 f"- {scenario['scenario_id']}: status={scenario['status']}, "
+                f"eta={scenario['eta']['eta']}, "
                 f"pdl_cap={scenario['lookup_context']['pdl_max_dist']}, "
                 f"budget={scenario['budget']['budget_total_bytes']}, "
                 f"total_bytes={scenario['total_bytes']}, "
+                f"total_d_ms={scenario['total_selected_d_ms']}, "
                 f"utilization={scenario['budget_utilization']}, "
+                f"change_vs_eta0={scenario['selected_candidate_change_count_vs_eta0']}, "
                 f"selected_kind={summary['by_candidate_kind']}, "
                 f"selected_pdl={summary['by_pdl_ratio']}"
             )
@@ -527,6 +553,7 @@ def _scenario_report(
     observation: dict[str, Any],
     budget_context: dict[str, Any],
     budget_point: dict[str, Any],
+    eta_scenario: dict[str, Any],
     stage2_input: Stage2Input,
     result: Stage2SolveResult,
     invariants: dict[str, Any],
@@ -537,6 +564,7 @@ def _scenario_report(
         lambda_iterations = len(result.lambda_search.get("iterations", ()))
     return {
         "scenario_id": stage2_input.scenario_id,
+        "eta": dict(eta_scenario),
         "lookup_context": {
             "context_id": observation["context_id"],
             "view_context": observation["view_context"],
@@ -561,8 +589,14 @@ def _scenario_report(
         "total_bytes": result.total_bytes,
         "budget_utilization": result.budget_utilization,
         "total_net_utility": result.total_net_utility,
+        "total_selected_d_ms": result.total_decode_ms,
         "lambda_search_iteration_count": lambda_iterations,
         "local_repair_step_count": len(result.local_upgrade.steps),
+        "selected_candidate_ids": {
+            selected.tile_id: selected.selected_candidate_id
+            for selected in result.selected_tiles
+        },
+        "selected_candidate_change_count_vs_eta0": None,
         "selection_summary": _selection_summary(result, catalog_index),
         "invariants": invariants,
     }
@@ -591,6 +625,118 @@ def _selection_summary(
         "by_pdl_ratio": _sorted_counter(by_pdl),
         "by_codec_qp": _sorted_counter(by_codec_qp),
     }
+
+
+def _validate_candidate_proxy_fields(profile: dict[str, Any]) -> None:
+    candidate_proxy = profile.get("candidate_proxy_fields", {})
+    _expect_equal(
+        candidate_proxy.get("q_base_provenance"),
+        "proxy",
+        "q_base_provenance",
+    )
+    _expect_equal(
+        candidate_proxy.get("d_ms_provenance"),
+        "proxy",
+        "d_ms_provenance",
+    )
+    _d_ms_mapping(profile)
+    _eta_scenarios(profile)
+
+
+def _d_ms_mapping(profile: dict[str, Any]) -> dict[str, float]:
+    candidate_proxy = profile.get("candidate_proxy_fields", {})
+    if "d_ms_by_candidate_kind" in candidate_proxy:
+        raw_mapping = candidate_proxy["d_ms_by_candidate_kind"]
+        _expect(isinstance(raw_mapping, dict), "d_ms_by_candidate_kind must be an object")
+        expected_kinds = {"ply_source", "drc_delivery"}
+        missing = sorted(expected_kinds - set(raw_mapping))
+        extra = sorted(set(raw_mapping) - expected_kinds)
+        _expect(not missing, f"d_ms_by_candidate_kind is missing {missing}")
+        _expect(not extra, f"d_ms_by_candidate_kind contains unsupported candidate kinds {extra}")
+        return {
+            candidate_kind: _finite_non_negative(
+                raw_mapping[candidate_kind],
+                f"d_ms_by_candidate_kind.{candidate_kind}",
+            )
+            for candidate_kind in sorted(expected_kinds)
+        }
+
+    return {
+        "ply_source": _finite_non_negative(candidate_proxy.get("d_ms"), "d_ms"),
+        "drc_delivery": _finite_non_negative(candidate_proxy.get("d_ms"), "d_ms"),
+    }
+
+
+def _candidate_d_ms(candidate: dict[str, Any], d_ms_mapping: dict[str, float]) -> float:
+    candidate_kind = _string(candidate.get("candidate_kind"), "candidate_kind")
+    if candidate_kind not in d_ms_mapping:
+        raise BehaviorPilotError(
+            f"d_ms mapping does not define candidate_kind {candidate_kind!r}"
+        )
+    return d_ms_mapping[candidate_kind]
+
+
+def _eta_scenarios(profile: dict[str, Any]) -> list[dict[str, Any]]:
+    candidate_proxy = profile.get("candidate_proxy_fields", {})
+    if "eta_scenarios" not in candidate_proxy:
+        return [_default_eta_scenario(profile)]
+
+    raw_scenarios = candidate_proxy["eta_scenarios"]
+    _expect(isinstance(raw_scenarios, list) and raw_scenarios, "eta_scenarios must be a non-empty list")
+    scenarios: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for item in raw_scenarios:
+        _expect(isinstance(item, dict), "eta_scenarios entries must be objects")
+        eta_id = _string(item.get("eta_id"), "eta_id")
+        _expect(eta_id not in seen_ids, f"duplicate eta_id {eta_id!r}")
+        seen_ids.add(eta_id)
+        scenarios.append(
+            {
+                "eta_id": eta_id,
+                "eta": _finite_non_negative(item.get("eta"), f"eta_scenarios.{eta_id}.eta"),
+                "provenance": item.get("provenance", "proxy"),
+                "notes_zh": item.get("notes_zh"),
+            }
+        )
+    _expect("eta0" in seen_ids, "eta_scenarios must include eta0 for sensitivity comparison")
+    return scenarios
+
+
+def _default_eta_scenario(profile: dict[str, Any]) -> dict[str, Any]:
+    candidate_proxy = profile.get("candidate_proxy_fields", {})
+    return {
+        "eta_id": None,
+        "eta": _finite_non_negative(candidate_proxy.get("eta"), "eta"),
+        "provenance": "proxy",
+        "notes_zh": candidate_proxy.get("notes_zh"),
+    }
+
+
+def _attach_eta0_change_counts(scenario_reports: list[dict[str, Any]]) -> None:
+    baselines: dict[tuple[str, str], dict[str, str]] = {}
+    for scenario in scenario_reports:
+        eta_id = scenario["eta"].get("eta_id")
+        if eta_id == "eta0" or eta_id is None:
+            key = (
+                scenario["lookup_context"]["context_id"],
+                scenario["budget"]["budget_id"],
+            )
+            baselines[key] = scenario["selected_candidate_ids"]
+
+    for scenario in scenario_reports:
+        key = (
+            scenario["lookup_context"]["context_id"],
+            scenario["budget"]["budget_id"],
+        )
+        baseline = baselines.get(key)
+        if baseline is None:
+            scenario["selected_candidate_change_count_vs_eta0"] = None
+            continue
+        scenario["selected_candidate_change_count_vs_eta0"] = sum(
+            1
+            for tile_id, selected_candidate_id in scenario["selected_candidate_ids"].items()
+            if baseline.get(tile_id) != selected_candidate_id
+        )
 
 
 def _catalog_index(catalog: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
@@ -674,6 +820,17 @@ def _string(value: Any, context: str) -> str:
 def _positive_number(value: Any, context: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) or value <= 0:
         raise BehaviorPilotError(f"{context} must be a positive finite number, got {value!r}")
+    return float(value)
+
+
+def _finite_non_negative(value: Any, context: str) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or float(value) < 0
+    ):
+        raise BehaviorPilotError(f"{context} must be finite and non-negative, got {value!r}")
     return float(value)
 
 

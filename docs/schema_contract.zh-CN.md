@@ -1,6 +1,6 @@
 # Schema 契约
 
-本文记录当前 JSON Schema 的运行时边界。Phase 2B.1 已完成 generic-candidate 迁移。Phase 2B.3 的 metadata catalog 和 Phase 2B.4 的 behavior pilot report 都是 JSON-compatible 输出，但没有修改正式 Stage2 Schema。
+本文记录当前 JSON Schema 的运行时边界。Phase 2B.1 已完成 generic-candidate 迁移。Phase 2B.3 的 metadata catalog、Phase 2B.4 的 behavior pilot report 和 Phase 2B.5 的 d_ms sensitivity report 都是 JSON-compatible 输出，但没有修改正式 Stage2 Schema。
 
 旧的 `level_id` / `lookup_level` 运行时 JSON 结构不再作为兼容输入解析。
 
@@ -12,18 +12,7 @@
 tiles[].candidates[]
 ```
 
-候选字段：
-
-- `candidate_id`
-- `pdl_ratio`
-- `file_format`
-- `codec`
-- `codec_params`
-- `asset_ref`
-- `r_bytes`
-- `d_ms`
-- `q_base`
-- `provenance`
+候选字段包括 `candidate_id`、`pdl_ratio`、`file_format`、`codec`、`codec_params`、`asset_ref`、`r_bytes`、`d_ms`、`q_base` 和 `provenance`。
 
 `candidate_id` 在 tile 内唯一，不要求连续，也不携带质量顺序。`pdl_ratio` 允许为空或缺失，以保留未来非 PDL profile 的扩展空间；但当前 PDL lookup 启用时，预处理必须拒绝缺少 `pdl_ratio` 的候选。
 
@@ -36,38 +25,6 @@ derived
 proxy
 synthetic
 ```
-
-候选 provenance 至少覆盖 `r_bytes`、`d_ms`、`q_base`、`pdl_ratio` 和 `asset_ref`。
-
-## Distance Lookup
-
-`schemas/distance_lookup.schema.json` 描述 PDL metadata cap lookup。当前运行时语义：
-
-```text
-allowed_candidate_ids = {candidate | candidate.pdl_ratio <= pdl_max_dist}
-```
-
-lookup 不按 `candidate_id`、数组位置、`qp`、`codec` 或 `file_format` 筛选。相同 PDL 下的 PLY、DRC 或不同 codec 参数候选会同时保留。
-
-非空 `target_id` 仍是明确拒绝路径，本仓库尚未实现 target-aware lookup。
-
-## Stage2 Result
-
-`schemas/stage2_result.schema.json` 已迁移为 candidate-aware 输出。`selected_tiles[]` 至少包含：
-
-- `selected_candidate_id`
-- `selected_candidate_snapshot`
-- `allowed_candidate_ids`
-- `rejected_candidate_ids`
-- `lookup_pdl_max_dist`
-- `r_bytes`
-- `d_ms`
-- `spatial_utility`
-- `net_utility`
-
-`selected_candidate_snapshot` 保留候选解释信息，不只输出 ID。
-
-`lookup_resolution[]` 记录每个 tile 的匹配规则、`pdl_max_dist`、允许候选和被剔除候选。`lambda_search.iterations[]` 记录 selected candidates。`local_upgrade.steps[]` 记录 candidate switch trace。
 
 ## Metadata Catalog
 
@@ -85,31 +42,27 @@ catalog 不能直接传入 `solve_stage2(...)`。
 
 ## Behavior Pilot JSON
 
-Phase 2B.4 新增的 pilot profile、临时 Stage2Input snapshot、solver result snapshot 和 report 都写入 ignored `outputs/` 或版本控制内 config。它们不扩展正式 Schema。
+Phase 2B.4 / 2B.5 的 pilot profile、临时 Stage2Input snapshot、solver result snapshot 和 report 都写入 ignored `outputs/` 或版本控制内 config。它们不扩展正式 Schema。
 
 临时 Stage2Input 仍使用当前 `schemas/stage2_input.schema.json`：
 
 - `r_bytes` 来自 catalog 中 measured 文件本体字节数；
 - `q_base = pdl_ratio`，provenance 为 `proxy`；
-- `d_ms = 0.0`，provenance 为 `proxy`；
+- `d_ms` 来自 profile proxy mapping，provenance 为 `proxy`；
 - `p_sal`、`visibility`、`screen_area` 为 `1.0` proxy；
 - `distance_norm = 1.0 / 3.0` 来自 calibrated lookup context；
 - `budget_total_bytes` 由 allowed candidate 的 `R` 派生，provenance 为 `derived`。
 
-pilot report 记录 profile fingerprint、catalog fingerprint、source metadata fingerprints、预算公式、lookup context、candidate count、solver status、选择摘要、不变量检查和 non-claims。report 不是论文实验结果，也不是性能/QoE 证据。
+Phase 2B.5 report 额外记录：
 
-## 旧结构拒绝
-
-旧输入字段不再是合法运行时 Schema：
-
-- `levels[]`
-- `lookup_level`
-- 以连续质量档位为中心的 selected result 字段
-
-这些词可能只在迁移说明或负向测试样例中出现，不能作为 active runtime 语义继续使用。
+- eta scenario id 与 eta 数值；
+- `d_ms_by_candidate_kind` mapping；
+- `total_selected_d_ms`；
+- 相对 eta0 的 selected candidate change count；
+- 明确 non-claims。
 
 ## Provenance 边界
 
-Schema 只记录字段来源，不证明物理测量真实性。Phase 2B.4 pilot 中，只有候选身份、metadata、`pdl_ratio`、`asset_ref` 和 `r_bytes` 来自真实 catalog；`q_base`、`d_ms`、空间因子、统一 distance assignment 和预算均不是真实测量。
+Phase 2B.5 pilot 中，只有候选身份、metadata、`pdl_ratio`、`asset_ref` 和 `r_bytes` 来自真实 catalog；`q_base`、`d_ms`、空间因子、统一 distance assignment、eta 和预算均不是真实测量。
 
 DRC file body size 不得写成端到端网络开销。proxy `D` 或 proxy `q` 不是 target-side measured 数据，也不是 DRC-aware 或 format-aware 质量测量。

@@ -31,7 +31,7 @@ DEFAULT_OUTPUT_DIR = ROOT / "outputs" / "frame1051_behavior_pilot"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the Phase 2B.4 frame 1051 solver behavior pilot. The runner "
+            "Run a frame 1051 solver behavior pilot profile. The runner "
             "builds a metadata-only catalog via the read-only bridge, maps it "
             "through an explicit proxy profile, and writes all real outputs to "
             "an ignored output directory."
