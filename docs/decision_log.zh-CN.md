@@ -93,21 +93,31 @@ Phase 2B.2 将仓库说明文档统一收敛为中文 Markdown。对应英文镜
 
 Phase 2B.3 新增 read-only metadata bridge。它显式接收本机 `pcv-stage2-data-prep` root，只读取轻量 JSON manifest/report，并通过 stat size 校验 manifest 引用文件。
 
-权威来源层级为：
-
-1. profile config；
-2. source PLY artifact manifest 与 tile index；
-3. DRC generation manifest；
-4. DRC validation report。
-
 bridge fail-closed：Longdress / frame 1051 / G128 / 5 PDL / 3 qp / Draco / point-cloud / `cl=10`、40 non-empty tile、200 PLY、600 DRC、800 total candidate、相对路径、文件存在性、manifest size、source PLY linkage 或 validation 摘要任一不一致都会失败。
 
 catalog 中 `r_bytes` 是候选文件本体字节数，来自 manifest 与 stat size 的一致性检查，provenance 为 `measured`。它不是端到端网络总开销。`d_ms` 与 `q_base` 保持 `pending`，不得由文件大小、点数、PDL、`qp`、codec 或常数推导。
 
-catalog 不是 `Stage2Input`，不能直接传入 solver。本阶段不读取 PLY/DRC 二进制内容，不运行 Draco，不重算大文件 SHA-256，不复制真实 assets，不生成 frame 1051 正式输入，不调用 `solve_stage2(...)`。
+catalog 不是 `Stage2Input`，不能直接传入 solver。本阶段不读取 PLY/DRC 二进制内容，不运行 Draco，不重算大文件 SHA-256，不复制真实 assets。
 
-## 后续阶段编号
+## D2B.4：frame 1051 behavior pilot 只验证 solver 行为
 
-- Phase 2B.4：frame 1051 求解器行为验证，尚未开始。
+Phase 2B.4 新增 `frame1051_fullbody_proxy_behavior_v1` profile 和 runner。runner 先调用 Phase 2B.3 bridge，再把 catalog 显式映射为临时 Stage2 input，运行现有 `solve_stage2(...)`。
 
-Phase 2B.4 之前仍需研究者冻结明确 proxy scoring/profile，包括如何补入 proxy `d_ms`、proxy `q_base`、预算和 tile 空间因子。本仓库仍未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。
+本阶段冻结：
+
+- `fullbody_d1`：`distance_norm = 1.0`，`pdl_max_dist = 1.0`；
+- `fullbody_d3`：`distance_norm = 3.0`，`pdl_max_dist = 0.6`；
+- `q_base = pdl_ratio`，provenance 为 `proxy`；
+- `d_ms = 0.0`，`eta = 0`，provenance 为 `proxy`；
+- `p_sal = visibility = screen_area = 1.0`，provenance 为 `proxy`；
+- `Budget_total` 使用 `min_feasible`、`midpoint`、`reference_max` 三个 derived 预算点。
+
+真实事实只包括候选身份、metadata、`pdl_ratio`、`asset_ref` 和 measured file body `r_bytes`。`r_bytes` 可作为 `R_i,j` 的文件本体字节记账值参与预算和 `lambda * R_i,j`，但不是端到端网络总开销。
+
+该 pilot 的选择分布只是在上述 proxy profile 下的行为输出，不能解释为 PLY 或 DRC 的实际质量、处理开销、网络性能或 QoE 更优。
+
+## 后续仍未完成
+
+后续仍需研究者确认或准备 target-side `d_ms`、format-aware / DRC-aware `q_base`、真实空间因子、真实 distance assignment、Stage1 `Budget_total` 接口，以及是否进入 Pareto pruning、baseline、batch runner、plotting 或播放器接入。
+
+本仓库仍未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。

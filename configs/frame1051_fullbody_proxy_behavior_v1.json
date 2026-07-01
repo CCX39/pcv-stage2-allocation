@@ -1,0 +1,130 @@
+{
+  "profile_id": "frame1051_fullbody_proxy_behavior_v1",
+  "description_zh": "Phase 2B.4 frame 1051 求解器行为验证 profile。它把 Phase 2B.3 metadata-only catalog 显式映射为临时 Stage2Input，用于验证 generic-candidate solver 在真实候选身份、真实文件本体字节数和 PDL lookup 下的行为；不是视觉质量、端侧性能、QoE、网络吞吐或格式优劣实验。",
+  "catalog_contract": {
+    "required_catalog_type": "frame1051_candidate_metadata_catalog",
+    "required_solver_ready": false,
+    "required_candidate_d_ms_status": "pending",
+    "required_candidate_q_base_status": "pending"
+  },
+  "lookup": {
+    "lookup_profile_id": "longdress_fullbody_strict_behavior_pilot_v1",
+    "semantics": "cap",
+    "distance_unit": "normalized_render_distance",
+    "threshold_profile": "strict_p10_ssim_ge_0.98",
+    "source_runs": [
+      "20260602_161531_longdress_full10"
+    ],
+    "source_boundary_zh": "使用 Longdress full-body strict PLY nested-PDL calibration 支持点；不是 DRC-aware quality measurement，也不是最终 QoE 结论。",
+    "pdl_support": [
+      {
+        "pdl_ratio": 0.2,
+        "quality_label": "PDL_0.2"
+      },
+      {
+        "pdl_ratio": 0.4,
+        "quality_label": "PDL_0.4"
+      },
+      {
+        "pdl_ratio": 0.6,
+        "quality_label": "PDL_0.6"
+      },
+      {
+        "pdl_ratio": 0.8,
+        "quality_label": "PDL_0.8"
+      },
+      {
+        "pdl_ratio": 1.0,
+        "quality_label": "PDL_1.0"
+      }
+    ],
+    "rules": [
+      {
+        "rule_id": "fullbody_behavior_d1_pdl1_0",
+        "view_context": "full_body",
+        "target_id": null,
+        "distance_match": {
+          "exact_distance": 1.0
+        },
+        "pdl_max_dist": 1.0,
+        "threshold_profile": "strict_p10_ssim_ge_0.98",
+        "notes": "Phase 2B.4 fullbody_d1 pilot context."
+      },
+      {
+        "rule_id": "fullbody_behavior_d3_pdl0_6",
+        "view_context": "full_body",
+        "target_id": null,
+        "distance_match": {
+          "exact_distance": 3.0
+        },
+        "pdl_max_dist": 0.6,
+        "threshold_profile": "strict_p10_ssim_ge_0.98",
+        "notes": "Phase 2B.4 fullbody_d3 pilot context."
+      }
+    ]
+  },
+  "observation_contexts": [
+    {
+      "context_id": "fullbody_d1",
+      "view_context": "full_body",
+      "distance_norm": 1.0,
+      "expected_pdl_max_dist": 1.0,
+      "distance_assignment_provenance": "calibrated",
+      "notes_zh": "统一使用 calibrated lookup 支持点 d=1.0；不是每个 tile 的真实几何距离、真实视点或真实 viewport。"
+    },
+    {
+      "context_id": "fullbody_d3",
+      "view_context": "full_body",
+      "distance_norm": 3.0,
+      "expected_pdl_max_dist": 0.6,
+      "distance_assignment_provenance": "calibrated",
+      "notes_zh": "统一使用 calibrated lookup 支持点 d=3.0；不是每个 tile 的真实几何距离、真实视点或真实 viewport。"
+    }
+  ],
+  "tile_proxy_fields": {
+    "p_sal": 1.0,
+    "visibility": 1.0,
+    "screen_area": 1.0,
+    "provenance": "proxy",
+    "notes_zh": "统一中性空间因子只用于避免虚构 saliency、visibility、screen_area 或相机几何。"
+  },
+  "candidate_proxy_fields": {
+    "q_base_rule": "q_base = pdl_ratio",
+    "q_base_provenance": "proxy",
+    "d_ms": 0.0,
+    "d_ms_provenance": "proxy",
+    "eta": 0.0,
+    "notes_zh": "eta=0，因此 d_ms 不参与本轮净效用；d_ms=0.0 不是目标端处理耗时为零的测量结论。同一 PDL 下 PLY 与 DRC 使用相同 q_base，不构成 DRC-aware 或 format-aware 质量测量。"
+  },
+  "budget_points": [
+    {
+      "budget_id": "min_feasible",
+      "formula": "B_min = sum_i min_j R_i,j over lookup-allowed candidates"
+    },
+    {
+      "budget_id": "midpoint",
+      "formula": "B_mid = floor((B_min + B_reference_max) / 2)"
+    },
+    {
+      "budget_id": "reference_max",
+      "formula": "B_reference_max = sum_i max_j R_i,j over lookup-allowed candidates"
+    }
+  ],
+  "budget_total_bytes_provenance": "derived",
+  "solver_config": {
+    "lambda_initial_high": 0.1,
+    "lambda_max_bracket_steps": 24,
+    "score_epsilon": 1e-9,
+    "lambda_epsilon": 1e-9,
+    "max_iterations": 50
+  },
+  "non_claims": [
+    "该 profile 只用于 solver behavior pilot，不是性能、QoE、网络吞吐或格式优劣实验。",
+    "distance_norm=1.0/3.0 是 normalized rendering distance 支持点引用，不是物理米，也不是每 tile 真实几何距离。",
+    "p_sal、visibility、screen_area、q_base、d_ms 与 Budget_total 均非真实测量。",
+    "q_base=pdl_ratio 只是 proxy scoring rule，不是 DRC-aware 或 format-aware 质量测量。",
+    "d_ms=0.0 且 eta=0 不表示目标端处理耗时为零，也不比较 PLY 与 DRC 的端侧处理开销。",
+    "r_bytes 是候选文件本体字节数，不是端到端网络总开销。",
+    "本轮不声明 PLY 或 DRC 的实际质量、处理开销、网络性能或 QoE 更优。"
+  ]
+}

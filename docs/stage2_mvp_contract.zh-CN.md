@@ -2,7 +2,7 @@
 
 Stage2 MVP 的目标是在给定 `Budget_total` 下，为每个参与决策的 tile 恰好选择一个传输候选，使结果满足预算、lookup 与输入完整性硬约束。
 
-Phase 2B.1 已完成通用传输版本候选迁移。Phase 2B.3 新增真实候选元数据只读桥接，但该桥接不属于 runtime solver 路径。
+Phase 2B.1 已完成通用传输版本候选迁移。Phase 2B.4 新增的 frame 1051 behavior pilot 是 MVP solver 的行为验证，不改变 runtime solver 路径。
 
 ## 候选语义
 
@@ -27,6 +27,8 @@ Uhat_i,j = U_spatial_i,j - eta * d_ms_i,j
 ```
 
 `q_base` 与 `d_ms` 可以是 proxy，但必须通过 provenance 标明来源。proxy 值不得写成 measured。
+
+Phase 2B.4 behavior pilot 固定 `q_base = pdl_ratio`、`d_ms = 0.0`、`eta = 0`。该设置只用于验证 solver 行为，不是质量或端侧耗时测量。
 
 ## Lookup
 
@@ -91,24 +93,28 @@ argmax_j [Uhat_i,j - lambda * R_i,j]
 
 平局按 penalized score、较小 `R`、较小 `D`、最后 `candidate_id` 稳定处理。
 
-best-feasible ranking：
+## Frame 1051 Behavior Pilot
 
-1. `total_net_utility` 更高；
-2. 若在 `score_epsilon` 内近似相同，预算利用率更高；
-3. 若仍相同，`total_decode_ms` 更低；
-4. 若仍相同，按排序后的 `(tile_id, selected_candidate_id)` 序列决胜。
+Phase 2B.4 profile 固定两个 full-body context：
 
-## Local Repair
+- `fullbody_d1`：`distance_norm = 1.0`，`pdl_max_dist = 1.0`；
+- `fullbody_d3`：`distance_norm = 3.0`，`pdl_max_dist = 0.6`。
 
-残余预算局部修正（local repair）不是 exact solver。它只在 lambda search seed candidate 之后使用剩余预算执行贪心候选切换：
+每个 context 派生三个预算点：
 
-```text
-Delta_R > 0
-Delta_Uhat > 0
-Delta_R <= residual_budget
-```
+- `min_feasible`；
+- `midpoint`；
+- `reference_max`。
 
-repair 不依赖候选编号、PDL、`qp`、codec 或 `file_format` 的大小方向。每一步记录 from/to candidate、增量、剩余预算变化和选择原因。
+因此正常情况下运行 6 个 scenario。若某些预算点数值偶然重复，runner 会去重并在 report 中记录。
+
+真实字段边界：
+
+- 使用真实 `tile_id`、`candidate_id`、PLY/DRC metadata、`pdl_ratio`、`asset_ref` 和 measured file body `r_bytes`；
+- 使用 calibrated PLY full-body strict lookup 支持点；
+- 使用 proxy `q_base`、proxy `d_ms`、proxy 空间因子、统一 context distance assignment 和 derived `Budget_total`。
+
+该 pilot 只验证 solver 的输入映射、lookup、预算、trace、provenance 和不变量，不声明视觉质量、端侧性能、QoE、网络吞吐或格式优劣。
 
 ## Tests-only Oracle
 
@@ -116,12 +122,6 @@ repair 不依赖候选编号、PDL、`qp`、codec 或 `file_format` 的大小方
 
 它不得进入 runtime solver，不得作为 baseline、批量实验或论文实时方法描述。
 
-## Frame 1051 Metadata Bridge
-
-Phase 2B.3 新增只读 bridge，用于生成 metadata-only candidate catalog。它读取 data-prep 的 profile config、source PLY manifest/tile index、DRC generation manifest 和 validation report，并校验 40/200/600/800 计数、相对路径、file stat size、source PLY linkage 与 DRC basic decode-integrity 摘要。
-
-该 catalog 不是 MVP solver 输入。它缺少 `d_ms`、`q_base`、预算与 tile 空间因子；`d_ms_status` 与 `q_base_status` 保持 `pending`。Phase 2B.4 才会在单独 proxy scoring/profile 冻结后使用它开展 frame 1051 求解器行为验证。
-
 ## 当前未实现
 
-MVP 当前未生成 frame 1051 正式输入，未对真实 frame 1051 调 solver，未测 target-side `D`，未构建 DRC-aware 或 format-aware `q`，未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。
+MVP 当前未测 target-side `D`，未构建 DRC-aware 或 format-aware `q`，未接入真实 saliency/visibility/projection pipeline，未接入 Stage1 `Budget_total` 在线接口，未实现 target-aware lookup、Pareto pruning、baseline、batch runner、plotting、播放器接入或目标端 benchmark。
